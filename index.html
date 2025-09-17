@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Key Hunt — Mobile</title>
+  <style>
+    :root{ --text:#e5e7eb; }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html,body{ height:100%; margin:0; background:radial-gradient(800px 800px at 70% -20%, #243056 0%, #0b0f1f 40%, #070a14 100%); color:var(--text); font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; overflow:hidden }
+    #game{ display:block; width:100vw; height:100vh; background:#0a0f1e }
+    .hud{ position:fixed; top:0; left:0; right:0; padding:10px; z-index:20; }
+    .topbar{ max-width:720px; margin:0 auto; background:rgba(10,15,30,.7); border:1px solid #2b335c; border-radius:12px; padding:10px 12px; font-size:14px; backdrop-filter: blur(6px) }
+    .mobile{ position:fixed; left:10px; right:10px; bottom:16px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; z-index:30; }
+    .pad{ display:grid; grid-template:repeat(3,64px)/repeat(3,64px); gap:8px }
+    .pad button{ background:#12162b; border:1px solid #2b335c; border-radius:12px }
+    .pad button:active{ filter:brightness(1.2) }
+    .act{ width:72px; height:72px; background:#1a2144; border:1px solid #2b335c; border-radius:18px; color:#e5e7eb; font-weight:800; font-size:18px }
+    .credits{ position:fixed; right:10px; top:10px; opacity:.5; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="hud"><div class="topbar" id="msg">Loading…</div></div>
+  <canvas id="game" width="360" height="640" aria-label="Top-down 2D key hunt game"></canvas>
+
+  <div class="mobile">
+    <div class="pad" aria-label="Move pad">
+      <span></span><button data-dy="-1" aria-label="Up"></button><span></span>
+      <button data-dx="-1" aria-label="Left"></button><span></span><button data-dx="1" aria-label="Right"></button>
+      <span></span><button data-dy="1" aria-label="Down"></button><span></span>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button id="btnE" class="act" aria-label="Interact">E</button>
+      <button id="btnR" class="act" aria-label="Restart">R</button>
+    </div>
+  </div>
+
+  <script type="module" src="./engine.js"></script>
+  <div class="credits">Key Hunt — Mobile</div>
+</body>
+</html>

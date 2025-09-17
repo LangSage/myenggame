@@ -1,0 +1,77 @@
+{
+  "name": "Level 1 — Follow the Signs",
+  "tile": 48,
+  "player": {
+    "speed": 0.9,
+    "start": [
+      2.5,
+      2.5
+    ]
+  },
+  "maze": {
+    "density": 1
+  },
+  "door": {
+    "side": "east",
+    "ty": "mid",
+    "locked": true
+  },
+  "puzzle": {
+    "type": "sequence",
+    "requiresSign": true,
+    "order": [
+      "Lamp",
+      "Plant",
+      "Barrel",
+      "Chest"
+    ],
+    "onComplete": {
+      "spawnKey": "far",
+      "message": "✨ A key appears somewhere!"
+    }
+  },
+  "key": {
+    "visible": false
+  },
+  "props": {
+    "autoCountFactor": 0.1,
+    "ensure": [
+      "Sign",
+      "Lamp",
+      "Plant",
+      "Barrel",
+      "Chest"
+    ]
+  },
+  "phrases": {
+    "generic": [
+      "Oh… I don't think it's here.",
+      "Just dust and regrets.",
+      "Close, but not key-nough."
+    ],
+    "hints": {
+      "Sign": [
+        "A note: 'Only those who follow the light, the leaf, the barrel, the chest…'",
+        "Order matters: Lamp → Plant → Barrel → Chest.",
+        "Tiny map sketch points to a door at the east wall."
+      ],
+      "Lamp": [
+        "The lamp hums warmly. Step one?"
+      ],
+      "Plant": [
+        "Leaves whisper: 'Second.'"
+      ],
+      "Barrel": [
+        "A hollow thump answers: 'Third.'"
+      ],
+      "Chest": [
+        "The lid creaks: 'Fourth.' Something clicks…"
+      ],
+      "Door": [
+        "A heavy door blocks the way. You'll need a key.",
+        "Locked tight. No getting through without unlocking it."
+      ]
+    }
+  },
+  "startMessage": "Find the 🔑 (after solving the sequence). Read the sign!"
+}

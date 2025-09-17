@@ -1,0 +1,16 @@
+{
+  "generic": [
+    "Nope.",
+    "Just dust.",
+    "Try somewhere else."
+  ],
+  "hints": {
+    "Door": [
+      "Locked tight.",
+      "Needs a key."
+    ],
+    "Lamp": [
+      "Warm glow. Step one?"
+    ]
+  }
+}
