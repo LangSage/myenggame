@@ -1,524 +1,736 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<title>Blind Fault Maze — Fixed Levels</title>
-<style>
-  :root { --hud-bg: rgba(0,0,0,.6); --accent:#10b981; --danger:#ef4444; --text:#e5e7eb; }
-  html,body{height:100%;margin:0;background:#000;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
-  #game{position:fixed;inset:0;overflow:hidden}
-  canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-  .hud{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0);padding:.5rem .75rem;display:flex;gap:.5rem;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,.85),rgba(0,0,0,.2));pointer-events:none;user-select:none}
-  .hud>*{pointer-events:auto}
-  .pill{background:var(--hud-bg);border:1px solid rgba(255,255,255,.08);padding:.4rem .6rem;border-radius:999px;font-size:.9rem;display:inline-flex;gap:.6rem;align-items:center}
-  .btn{background:var(--hud-bg);border:1px solid rgba(255,255,255,.08);color:var(--text);padding:.5rem .8rem;border-radius:.75rem;font-weight:600;letter-spacing:.2px;cursor:pointer;transition:transform .08s ease}
-  .btn:active{transform:scale(.98)}
-  .btn-accent{border-color:rgba(16,185,129,.45);box-shadow:0 0 0 1px rgba(16,185,129,.15) inset}
-  .btn-danger{border-color:rgba(239,68,68,.4)}
-  .toggle{display:inline-flex;align-items:center;gap:.35rem;cursor:pointer;user-select:none}
-  .toggle input{accent-color:var(--accent);width:1rem;height:1rem}
-  .pad{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0) + .5rem);display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:64px;gap:.5rem;padding:0 .75rem}
-  .pad .btn{font-size:1.15rem}.pad .sp{visibility:hidden}
-  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(0,0,0,.65),rgba(0,0,0,.9) 60%,#000 100%);backdrop-filter:blur(2px)}
-  .card{width:min(640px,92vw);border-radius:1rem;padding:1rem;background:rgba(17,24,39,.8);border:1px solid rgba(255,255,255,.08);box-shadow:0 10px 30px rgba(0,0,0,.4)}
-  .card h1{margin:.2rem 0 .6rem;font-size:1.4rem}
-  .muted{color:#9ca3af;font-size:.95rem}
-  .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-  input,select,textarea{background:#0b0f17;color:var(--text);border:1px solid rgba(255,255,255,.08);border-radius:.6rem;padding:.5rem .6rem}
-  textarea{width:100%;min-height:140px;resize:vertical}
-  .key{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;background:#0b0f17;border:1px solid rgba(255,255,255,.08);padding:.1rem .4rem;border-radius:.4rem}
-  .flash-red{animation:flash .25s ease}
-  @keyframes flash{0%{background:rgba(239,68,68,.25)}100%{background:transparent}}
-  .footer{position:fixed;right:.5rem;bottom:calc(env(safe-area-inset-bottom,0) + 4.8rem);font-size:.8rem;color:#6b7280;opacity:.85;background:var(--hud-bg);padding:.25rem .5rem;border-radius:.5rem}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Faith Journey Map — One-Class Game</title>
+  <!-- Bootstrap 5.0.2 (per your preference) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  <style>
+    :root{
+      --board-cols: 6;
+      --board-rows: 4;
+      --cell-size: 96px;            /* tweak for projector / laptop */
+      --cell-gap: 10px;
+      --bg: #f7f5ef;
+      --ink: #1f2937;
+      --accent: #8b5cf6;
+      --blessing: #10b981;
+      --challenge: #ef4444;
+      --prayer: #3b82f6;
+      --quiz: #f59e0b;
+    }
+    html,body{background: radial-gradient(1200px 800px at 20% -10%, #fff, #f7f5ef 60%, #ece7d8) no-repeat fixed; color:var(--ink);}
+    .game-wrap{max-width:1200px; margin:24px auto;}
+    .board{
+      position:relative;
+      display:grid;
+      grid-template-columns: repeat(var(--board-cols), var(--cell-size));
+      grid-template-rows: repeat(var(--board-rows), var(--cell-size));
+      gap: var(--cell-gap);
+      padding: 16px;
+      border-radius: 18px;
+      background: #fff url('./assets/bg_map.jpg') center/cover no-repeat;
+      box-shadow: 0 12px 30px rgba(0,0,0,.08);
+      overflow:hidden;
+    }
+    .cell{
+      position:relative; border-radius:14px; background:#faf8f2cc;
+      border:2px solid #e7dfcc; backdrop-filter:saturate(1.4) blur(1px);
+      display:flex; align-items:center; justify-content:center; text-align:center;
+      padding:8px; font-weight:600; font-size:14px; line-height:1.1;
+      transition:transform .15s ease;
+    }
+    .cell:hover{transform:translateY(-3px)}
+    .cell .idx{position:absolute; top:6px; left:8px; font-size:12px; opacity:.7}
+    .cell .icon{font-size:24px; display:block}
+    .cell.type-start{border-color:#b0d7a6}
+    .cell.type-finish{border-color:#b5a6d7}
+    .badge-chip{font-size:11px; letter-spacing:.2px}
+    .legend .chip{display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; color:#fff; margin:2px}
+    .chip-quiz{background:var(--quiz)}
+    .chip-bless{background:var(--blessing)}
+    .chip-chal{background:var(--challenge)}
+    .chip-pray{background:var(--prayer)}
+    .chip-story{background: #6b7280; color:#fff}
+    .hud{
+      background:#fff; border:1px solid #ece6d7; border-radius:16px; padding:16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.06);
+    }
+    .timer{
+      font-variant-numeric:tabular-nums; font-weight:800; font-size:28px
+    }
+    .dice{
+      width:64px;height:64px;border-radius:12px;border:2px solid #e2e8f0;
+      display:flex;align-items:center;justify-content:center;font-size:28px;background:#fff;
+      box-shadow: inset 0 2px 0 rgba(0,0,0,.05);
+    }
+    .dice.shake{animation:shake .6s ease}
+    @keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-4px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,2px)}80%{transform:translate(3px,-1px)}}
+    .pawn{
+      position:absolute; width:34px;height:34px;border-radius:50%;
+      border:2px solid #111; box-shadow:0 4px 10px rgba(0,0,0,.2); transform:translate(-50%,-50%);
+      background-size:cover; background-position:center; background-color:#ddd;
+    }
+    .pawn.red{background-image:url('./assets/pawn_red.png')}
+    .pawn.blue{background-image:url('./assets/pawn_blue.png')}
+    .pawn.green{background-image:url('./assets/pawn_green.png')}
+    .pawn.yellow{background-image:url('./assets/pawn_yellow.png')}
+    .event-card{
+      border:2px dashed #e5dccc; border-radius:14px; padding:12px; background:#fffaf3
+    }
+    .scroll{
+      background:#fffdf8; border:1px solid #eadfc7; border-radius:12px; padding:12px
+    }
+    .btn-roll{font-weight:700}
+    .modal-backdrop-custom{
+      position:fixed; inset:0; background:rgba(20,16,5,.55);
+      display:none; align-items:center; justify-content:center; z-index:9999;
+    }
+    .modal-backdrop-custom.show{display:flex}
+    .modal-card{
+      max-width:760px; width:calc(100% - 24px); background:#fff; border-radius:18px; padding:18px;
+      box-shadow:0 20px 60px rgba(0,0,0,.25); border:1px solid #eadfcf;
+    }
+    .answer{border:1px solid #e5e7eb; border-radius:10px; padding:10px; cursor:pointer; background:#fff}
+    .answer:hover{background:#f7fafc}
+    .answer.correct{border-color:#10b981; background:#ecfdf5}
+    .answer.wrong{border-color:#ef4444; background:#fef2f2}
+    .toast-mini{
+      position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+      background:#111827; color:#fff; padding:10px 14px; border-radius:999px; font-size:14px; display:none
+    }
+    .toast-mini.show{display:block}
+    .sr{position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden;}
+  </style>
 </head>
 <body>
-<div id="game">
-  <canvas id="c"></canvas>
+<div class="game-wrap px-3">
+  <header class="mb-3">
+    <h1 class="h3 mb-1">🗺️ Faith Journey Map</h1>
+    <p class="text-muted mb-0">From the first family to the family of God today. (One-class, ~15 minutes)</p>
+  </header>
 
-  <!-- HUD -->
-  <div class="hud">
-    <div class="pill">
-      <span>Deaths: <strong id="deaths">0</strong></span>
-      <span>Steps: <strong id="steps">0</strong></span>
-      <span>Time: <strong id="time">00:00</strong></span>
+  <!-- Setup Panel -->
+  <section id="setupPanel" class="hud mb-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label">Players/Teams</label>
+        <select id="playerCount" class="form-select">
+          <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Timer (min)</label>
+        <input id="minutesInput" class="form-control" type="number" min="5" max="25" step="1" value="15">
+      </div>
+      <div class="col-md-8">
+        <div class="row gx-2">
+          <div class="col">
+            <label class="form-label">Team 1 name</label>
+            <input id="name1" class="form-control" value="Team Eden">
+          </div>
+          <div class="col">
+            <label class="form-label">Team 2 name</label>
+            <input id="name2" class="form-control" value="Team Ark">
+          </div>
+          <div class="col d-none d-md-block">
+            <label class="form-label">Team 3 name</label>
+            <input id="name3" class="form-control" value="Team Israel">
+          </div>
+          <div class="col d-none d-md-block">
+            <label class="form-label">Team 4 name</label>
+            <input id="name4" class="form-control" value="Team Church">
+          </div>
+        </div>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button id="startBtn" class="btn btn-primary px-4">Start Game</button>
+        <span class="text-muted">Tip: You can rename teams before starting.</span>
+      </div>
     </div>
-    <div class="row">
-      <button class="btn btn-accent" id="btnPing" title="Echo ping (3 uses)">Echo (3)</button>
-      <label class="toggle"><input type="checkbox" id="assist" /> Assist blink</label>
-      <button class="btn" id="btnMute">🔊</button>
-      <button class="btn btn-danger" id="btnReset">Reset</button>
+  </section>
+
+  <div class="row g-3">
+    <!-- Board -->
+    <div class="col-lg-7">
+      <section id="board" class="board" aria-label="Faith Journey Board">
+        <!-- JS fills cells -->
+      </section>
+      <div class="legend mt-2">
+        <span class="chip chip-story">Story</span>
+        <span class="chip chip-quiz">Quiz</span>
+        <span class="chip chip-bless">Blessing</span>
+        <span class="chip chip-chal">Challenge</span>
+        <span class="chip chip-pray">Prayer</span>
+      </div>
     </div>
-  </div>
 
-  <!-- D-Pad -->
-  <div class="pad">
-    <span class="sp"></span><button class="btn" id="btnUp">▲</button><span class="sp"></span>
-    <button class="btn" id="btnLeft">◀</button><button class="btn" id="btnCenter" title="Stand / Echo (long-press)">●</button><button class="btn" id="btnRight">▶</button>
-    <span class="sp"></span><button class="btn" id="btnDown">▼</button><span class="sp"></span>
-  </div>
-
-  <div class="footer">Swipe or use the D-pad. Long-press center for Echo.</div>
-
-  <!-- Start overlay -->
-  <div class="overlay" id="startOverlay">
-    <div class="card">
-      <h1>Blind Fault Maze (Fixed)</h1>
-      <p class="muted">Move through a black world. Only some tiles are safe — the rest are deadly pits. You must <em>draw your own paper map</em> to find the path from <span class="key">S</span> to <span class="key">E</span>.</p>
-
-      <div class="row" style="margin:.5rem 0;">
-        <label>Level:
-          <select id="levelSel">
-            <option value="Serpent-15">Serpent-15 (default)</option>
-            <option value="Serpent-20">Serpent-20</option>
-            <option value="Custom">Custom (paste below)</option>
-          </select>
-        </label>
-        <button class="btn" id="btnPrint">Print blank grid</button>
-      </div>
-
-      <details style="margin:.25rem 0 0">
-        <summary class="muted">Custom level format</summary>
-        <p class="muted" style="margin:.4rem 0">Paste ASCII map: <span class="key">S</span> = start, <span class="key">E</span> = exit, <span class="key">.</span> = safe, <span class="key">#</span> = pit. All rows must be equal width.</p>
-      </details>
-      <textarea id="customText" placeholder="Example:
-S..............
-##############.
-...............
-.##############
-...............
-##############.
-...............
-.##############
-...............
-##############.
-...............
-.##############
-...............
-##############.
-..............E"></textarea>
-
-      <div class="row" style="margin-top:.6rem">
-        <button class="btn btn-accent" id="btnStart">Start</button>
-        <button class="btn" id="btnMute2">🔊 Toggle Sound</button>
-      </div>
-      <p class="muted" style="margin-top:.5rem">Audio placeholders: background <span class="key">back.mp3</span> (loop), lose <span class="key">lose.mp3</span>. Replace with your links later.</p>
-    </div>
-  </div>
-
-  <!-- Win overlay -->
-  <div class="overlay" id="winOverlay" style="display:none;">
-    <div class="card">
-      <h1>Exit Found! 🎉</h1>
-      <p class="muted">Level: <span id="winLevel" class="key"></span></p>
-      <div class="pill" style="margin:.5rem 0 1rem; display:inline-flex;">
-        <span>Deaths: <strong id="sumDeaths"></strong></span>
-        <span>Steps: <strong id="sumSteps"></strong></span>
-        <span>Time: <strong id="sumTime"></strong></span>
-      </div>
-      <p class="muted">Best for this level: <span id="bestLine">—</span></p>
-      <div class="row">
-        <button class="btn btn-accent" id="btnReplay">Replay</button>
-        <button class="btn" id="btnClose">Close</button>
-      </div>
+    <!-- HUD -->
+    <div class="col-lg-5">
+      <section class="hud">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small text-muted">Time Left</div>
+            <div id="timer" class="timer">15:00</div>
+          </div>
+          <div class="text-end">
+            <div class="small text-muted">Current Team</div>
+            <div id="turnName" class="fw-bold">—</div>
+          </div>
+        </div>
+        <hr>
+        <div class="d-flex align-items-center gap-3">
+          <div id="dice" class="dice" aria-label="dice" role="img" title="Dice">🎲</div>
+          <button id="rollBtn" class="btn btn-roll btn-success px-4">Roll</button>
+          <button id="endBtn" class="btn btn-outline-secondary ms-auto">End Game</button>
+        </div>
+        <hr>
+        <div id="eventPanel" class="event-card">
+          <div class="d-flex align-items-center gap-2">
+            <img src="./assets/icon_scroll.jpeg" onerror="this.style.display='none'" alt="" width="22" height="22">
+            <h2 class="h6 mb-0">Event</h2>
+          </div>
+          <div id="eventText" class="mt-2 small">Roll the dice to begin the journey.</div>
+        </div>
+        <div class="mt-3 scroll">
+          <div class="d-flex align-items-center gap-2">
+            <img src="./assets/icon_book.png" onerror="this.style.display='none'" alt="" width="20" height="20">
+            <strong>Lesson focus:</strong>
+          </div>
+          <ul class="mb-0 small mt-2">
+            <li>First family on earth (children of Adam & Eve)</li>
+            <li>Family saved in the Flood (Noah)</li>
+            <li>Family from which Israel came (12 tribes of Jacob/Israel)</li>
+            <li>One big Christian family today</li>
+          </ul>
+        </div>
+      </section>
     </div>
   </div>
 </div>
 
-<!-- Audio -->
-<audio id="bgm" src="back.mp3" preload="auto" loop></audio>
-<audio id="lose" src="lose.mp3" preload="auto"></audio>
+<!-- Modal (Quiz / Cards) -->
+<div id="modal" class="modal-backdrop-custom" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal-card">
+    <div class="d-flex justify-content-between align-items-start">
+      <h3 id="modalTitle" class="h5 mb-2">—</h3>
+      <button id="modalClose" class="btn btn-sm btn-outline-secondary">Close</button>
+    </div>
+    <div id="modalBody" class="mt-1"></div>
+    <div id="modalFooter" class="mt-3 d-flex gap-2 justify-content-end"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast-mini">Saved</div>
+
+<!-- Audio (will gracefully fail if files missing) -->
+<audio id="sfxDice" src="./assets/sfx_dice.wav" preload="auto"></audio>
+<audio id="sfxMove" src="./assets/sfx_move.wav" preload="auto"></audio>
+<audio id="sfxCorrect" src="./assets/sfx_correct.wav" preload="auto"></audio>
+<audio id="sfxWrong" src="./assets/sfx_wrong.wav" preload="auto"></audio>
+<audio id="sfxBless" src="./assets/sfx_blessing.wav" preload="auto"></audio>
+<audio id="sfxChal" src="./assets/sfx_challenge.wav" preload="auto"></audio>
+<audio id="sfxWin" src="./assets/sfx_win.wav" preload="auto"></audio>
+<audio id="sfxTick" src="./assets/sfx_tick.wav" preload="auto"></audio>
+<audio id="bgm" src="./assets/music_bg.mp3" preload="auto" loop></audio>
 
 <script>
-/* ========= Fixed levels ========= */
-const LEVELS = {
-  "Serpent-15": {
-    grid: [
-"S..............",
-"##############.",
-"...............",
-".##############",
-"...............",
-"##############.",
-"...............",
-".##############",
-"...............",
-"##############.",
-"...............",
-".##############",
-"...............",
-"##############.",
-"..............E",
-    ]
-  },
-  "Serpent-20": {
-    grid: [
-"S...................",
-"###################.",
-"....................",
-".###################",
-"....................",
-"###################.",
-"....................",
-".###################",
-"....................",
-"###################.",
-"....................",
-".###################",
-"....................",
-"###################.",
-"....................",
-".###################",
-"....................",
-"###################.",
-"....................",
-"###################E",
-    ]
+(()=>{
+  // ---------------------------
+  // Config (edit if you like)
+  // ---------------------------
+  const BOARD_COLS = 6;
+  const BOARD_ROWS = 4;
+  const TILE_COUNT = BOARD_COLS * BOARD_ROWS; // 24
+  const DEFAULT_MINUTES = 15;
+
+  // Which tiles have events (index 1..24):
+  // story: general narrative; quiz: question; bless/chal/pray: action cards.
+  const SPECIALS = {
+    1:  {type:'start',  label:'Eden — First Family', icon:'🌿'},
+    3:  {type:'quiz',   label:'Quiz', icon:'❓'},
+    5:  {type:'bless',  label:'Blessing', icon:'🕊️'},
+    6:  {type:'chal',   label:'Challenge', icon:'⚠️'},
+    8:  {type:'story',  label:'Noah — Saved Family', icon:'⛵'},
+    9:  {type:'quiz',   label:'Quiz', icon:'❓'},
+    11: {type:'bless',  label:'Blessing', icon:'🕊️'},
+    12: {type:'pray',   label:'Prayer', icon:'🙏'},
+    14: {type:'story',  label:'Abraham — Promise', icon:'⭐'},
+    15: {type:'quiz',   label:'Quiz', icon:'❓'},
+    16: {type:'chal',   label:'Challenge', icon:'⚠️'},
+    18: {type:'story',  label:'Jacob — 12 Tribes', icon:'🧭'},
+    19: {type:'quiz',   label:'Quiz', icon:'❓'},
+    20: {type:'bless',  label:'Blessing', icon:'🕊️'},
+    22: {type:'story',  label:'Church — One Family', icon:'⛪'},
+    24: {type:'finish', label:'We are God’s Family', icon:'✨'}
+  };
+
+  // Decks / content
+  const QUIZ_DECK = shuffle([
+    q('Who were Adam and Eve’s first two sons?', ['Cain and Abel','David and Jonathan','Peter and Andrew'], 0, 'Genesis 4:1–2'),
+    q('Who built the ark?', ['Noah','Moses','Abraham'], 0, 'Genesis 6–9'),
+    q('What sign did God give after the Flood?', ['Rainbow','Olive tree','Stone tablets'], 0, 'Genesis 9:13'),
+    q('Jacob’s other name was…', ['Israel','Esau','Judah'], 0, 'Genesis 32:28'),
+    q('How many sons did Jacob have?', ['7','10','12'], 2, 'Genesis 35:22–26'),
+    q('From whose family did the 12 tribes come?', ['Jacob/Israel’s','Noah’s','David’s'], 0, 'Genesis 49'),
+    q('What unites Christians as one family?', ['Faith in Christ','Same language','Same country'], 0, 'Galatians 3:26–28'),
+    q('Where did the first family live?', ['Eden','Jerusalem','Nazareth'], 0, 'Genesis 2'),
+    q('What happened on Pentecost?', ['Holy Spirit came','Red Sea parted','Manna fell'], 0, 'Acts 2'),
+    q('Who is the head of the Church?', ['Christ','Moses','Peter'], 0, 'Ephesians 1:22'),
+    q('Who were Noah’s sons?', ['Shem, Ham, Japheth','Cain, Abel, Seth','Peter, James, John'], 0, 'Genesis 5–10'),
+    q('What did God promise Abraham?', ['A great nation','A big boat','A palace'], 0, 'Genesis 12:2')
+  ]);
+
+  const STORY_SNIPPETS = [
+    ['Eden — First Family',
+     'God made Adam and Eve. Family began with love and God’s care. (Genesis 1–2)'],
+    ['The Fall & Hope',
+     'Even after sin, God promised hope and a Savior. (Genesis 3:15)'],
+    ['Noah — Saved Together',
+     'Noah’s family trusted God and entered the ark. (Genesis 6–9)'],
+    ['Promise to Abraham',
+     '“I will make you a great nation.” The family of faith grows. (Genesis 12:2)'],
+    ['Jacob / Israel',
+     'God renamed Jacob “Israel.” From him came twelve tribes. (Genesis 32; 49)'],
+    ['One Family in Christ',
+     'In Jesus, people from every nation become one family — the Church. (Acts 2; Gal 3)'],
+  ];
+
+  const BLESSINGS = shuffle([
+    ['Encouragement','Share one thing you’re grateful for about your family. Move +1.'],
+    ['Service Heart','Name a simple way to serve someone this week. Move +2.'],
+    ['God’s Promise','“I am with you.” Encourage your team. Move +1.'],
+    ['Unity','Say “We are one in Christ!” together. Move +2.']
+  ]);
+
+  const CHALLENGES = shuffle([
+    ['Patience','Wait one turn (skip next roll).'],
+    ['Courage','Move back 1 and say: “God helps us.”'],
+    ['Honesty','Admit one thing you can improve at home. No move.'],
+    ['Peacemaker','Say “I’m sorry” practice line. Move back 1.']
+  ]);
+
+  const PRAYERS = shuffle([
+    'Short prayer: “Lord, thank You for our families.” Then move +1.',
+    'Short prayer: “Make us kind and united.” Move +1.',
+    'Short prayer: “Help us follow Jesus today.” Move +1.'
+  ]);
+
+  // State
+  let players = []; // {id,name,color,position,skipTurns}
+  let current = 0;
+  let timerId = null;
+  let secondsLeft = DEFAULT_MINUTES * 60;
+  let gameStarted = false;
+  let gameOver = false;
+
+  // DOM
+  const el = {
+    board: $('#board'),
+    setup: $('#setupPanel'),
+    startBtn: $('#startBtn'),
+    minutesInput: $('#minutesInput'),
+    playerCount: $('#playerCount'),
+    names: [$('#name1'), $('#name2'), $('#name3'), $('#name4')],
+    timer: $('#timer'),
+    turnName: $('#turnName'),
+    eventText: $('#eventText'),
+    rollBtn: $('#rollBtn'),
+    dice: $('#dice'),
+    endBtn: $('#endBtn'),
+    modal: $('#modal'),
+    modalTitle: $('#modalTitle'),
+    modalBody: $('#modalBody'),
+    modalFooter: $('#modalFooter'),
+    modalClose: $('#modalClose'),
+    toast: $('#toast'),
+    bgm: $('#bgm'),
+    sfxDice: $('#sfxDice'),
+    sfxMove: $('#sfxMove'),
+    sfxCorrect: $('#sfxCorrect'),
+    sfxWrong: $('#sfxWrong'),
+    sfxBless: $('#sfxBless'),
+    sfxChal: $('#sfxChal'),
+    sfxWin: $('#sfxWin'),
+    sfxTick: $('#sfxTick'),
+  };
+
+  // Utilities
+  function $(q,scope=document){ return scope.querySelector(q); }
+  function ce(tag, cls, html){ const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; }
+  function shuffle(a){ const arr=[...a]; for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+  function q(question, options, answerIndex, ref){ return {question, options, answerIndex, ref}; }
+  function serpentineIndexToGrid(i){ // i: 1..TILE_COUNT
+    const zero = i-1;
+    const r = Math.floor(zero / BOARD_COLS);
+    const c = zero % BOARD_COLS;
+    const row = BOARD_ROWS - 1 - r;
+    const col = (r % 2 === 0) ? c : (BOARD_COLS - 1 - c);
+    return {row, col};
   }
-};
-
-/* ========= Utilities ========= */
-const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
-function pad2(n){ return (n<10?'0':'')+n; }
-function fmtTime(s){ const m=Math.floor(s/60), ss=Math.floor(s%60); return pad2(m)+':'+pad2(ss); }
-
-/* ========= Game State ========= */
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d', { alpha:false });
-let DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
-
-let levelName = "Serpent-15";
-let N = 15;
-let cellPx = 24;
-
-let safe = [];           // [y][x] boolean
-let start = {x:0,y:0};
-let exitC = {x:0,y:0};
-let player = {x:0,y:0};
-
-let steps=0,deaths=0,startTime=0,timeSec=0,timerId=null;
-let echoUses=3;
-let assistBlink=false, assistGlowT=0;
-let running=false;
-
-const els = {
-  deaths: document.getElementById('deaths'),
-  steps: document.getElementById('steps'),
-  time: document.getElementById('time'),
-  btnReset: document.getElementById('btnReset'),
-  btnMute: document.getElementById('btnMute'),
-  btnMute2: document.getElementById('btnMute2'),
-  btnPing: document.getElementById('btnPing'),
-  assist: document.getElementById('assist'),
-  startOverlay: document.getElementById('startOverlay'),
-  winOverlay: document.getElementById('winOverlay'),
-  sumDeaths: document.getElementById('sumDeaths'),
-  sumSteps: document.getElementById('sumSteps'),
-  sumTime: document.getElementById('sumTime'),
-  bestLine: document.getElementById('bestLine'),
-  winLevel: document.getElementById('winLevel'),
-  btnReplay: document.getElementById('btnReplay'),
-  btnClose: document.getElementById('btnClose'),
-  btnStart: document.getElementById('btnStart'),
-  btnPrint: document.getElementById('btnPrint'),
-  levelSel: document.getElementById('levelSel'),
-  customText: document.getElementById('customText'),
-  padUp: document.getElementById('btnUp'),
-  padDown: document.getElementById('btnDown'),
-  padLeft: document.getElementById('btnLeft'),
-  padRight: document.getElementById('btnRight'),
-  padCenter: document.getElementById('btnCenter'),
-  bgm: document.getElementById('bgm'),
-  lose: document.getElementById('lose')
-};
-
-function resize(){
-  const w=innerWidth,h=innerHeight;
-  canvas.width = Math.floor(w*DPR);
-  canvas.height = Math.floor(h*DPR);
-  canvas.style.width = w+'px';
-  canvas.style.height = h+'px';
-  const maxCellW = Math.floor((canvas.width * 0.85) / N);
-  const maxCellH = Math.floor((canvas.height * 0.70) / N);
-  cellPx = Math.max(10, Math.min(maxCellW, maxCellH));
-}
-addEventListener('resize', resize);
-
-function updateHUD(){
-  els.deaths.textContent = deaths;
-  els.steps.textContent = steps;
-  els.time.textContent = fmtTime(timeSec);
-  els.btnPing.textContent = `Echo (${echoUses})`;
-}
-
-/* ========= Level loading (fixed) ========= */
-function parseGrid(lines){
-  const trimmed = lines.map(s => s.replace(/\s+$/,''));
-  const width = Math.max(...trimmed.map(s=>s.length));
-  if(trimmed.some(s => s.length !== width)) throw new Error('All rows must have equal width');
-  let sx=-1, sy=-1, ex=-1, ey=-1;
-  const grid = [];
-  for(let y=0;y<trimmed.length;y++){
-    const row = trimmed[y];
-    const arr = [];
-    for(let x=0;x<width;x++){
-      const ch = row[x] || '#';
-      if(ch==='S'){ sx=x; sy=y; arr.push(true); }
-      else if(ch==='E'){ ex=x; ey=y; arr.push(true); }
-      else if(ch==='.') arr.push(true);
-      else if(ch==='#') arr.push(false);
-      else arr.push(false); // treat unknown as pit
-    }
-    grid.push(arr);
+  function cellCenterPos(cellEl){
+    const r = cellEl.getBoundingClientRect();
+    const b = el.board.getBoundingClientRect();
+    return { x: r.left - b.left + r.width/2, y: r.top - b.top + r.height/2 };
   }
-  if(sx<0||sy<0) throw new Error('No start S found');
-  if(ex<0||ey<0) throw new Error('No exit E found');
-  return { grid, width, height: trimmed.length, start:{x:sx,y:sy}, exit:{x:ex,y:ey} };
-}
-
-function loadLevel(name){
-  levelName = name;
-  let lines;
-  if(name === 'Custom'){
-    const txt = els.customText.value.trim();
-    if(!txt) throw new Error('Paste your custom grid first');
-    lines = txt.split('\n');
-  } else {
-    lines = LEVELS[name].grid.slice();
+  function toast(msg, ms=1400){
+    el.toast.textContent = msg;
+    el.toast.classList.add('show');
+    setTimeout(()=>el.toast.classList.remove('show'), ms);
   }
-  const parsed = parseGrid(lines);
-  safe = parsed.grid;
-  N = parsed.width;
-  start = parsed.start;
-  exitC = parsed.exit;
-  player = { ...start };
-  steps = deaths = timeSec = 0;
-  echoUses = 3;
-  updateHUD();
-}
-
-/* ========= Timer ========= */
-function startTimer(){
-  if(timerId) clearInterval(timerId);
-  startTime = Date.now();
-  timerId = setInterval(()=>{ timeSec = (Date.now()-startTime)/1000; els.time.textContent = fmtTime(timeSec); }, 250);
-}
-
-/* ========= Render ========= */
-function render(){
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
-  const totalW = N*cellPx, totalH = safe.length*cellPx;
-  const offX = Math.floor((canvas.width - totalW)/2);
-  const offY = Math.floor((canvas.height - totalH)/2);
-
-  // faint exit pulse (still very subtle)
-  const t = performance.now()/1000;
-  const pulse = (Math.sin(t*2)+1)/2 * .35 + .1;
-  ctx.strokeStyle = `rgba(255,255,255,${pulse*0.12})`;
-  ctx.lineWidth = Math.max(1, Math.floor(cellPx*0.06));
-  const ex = offX + (exitC.x+0.5)*cellPx, ey = offY + (exitC.y+0.5)*cellPx;
-  ctx.beginPath(); ctx.arc(ex, ey, cellPx*0.45, 0, Math.PI*2); ctx.stroke();
-
-  // Assist blink on player tile
-  if(els.assist.checked && assistGlowT>0){
-    const a = Math.max(0, Math.min(1, assistGlowT/200));
-    ctx.fillStyle = `rgba(255,255,255,${0.08*a})`;
-    ctx.fillRect(offX + player.x*cellPx, offY + player.y*cellPx, cellPx, cellPx);
-    assistGlowT -= 16;
+  function play(aud){
+    try{ aud.currentTime=0; aud.play().catch(()=>{});}catch(e){}
   }
 
-  // Player
-  ctx.fillStyle='#fff';
-  const px = offX + (player.x+0.5)*cellPx, py = offY + (player.y+0.5)*cellPx;
-  ctx.beginPath(); ctx.arc(px, py, Math.max(2, cellPx*0.22), 0, Math.PI*2); ctx.fill();
-
-  requestAnimationFrame(render);
-}
-
-/* ========= Rules ========= */
-function lose(){
-  deaths++; updateHUD();
-  document.body.classList.add('flash-red'); setTimeout(()=>document.body.classList.remove('flash-red'), 180);
-  try{ els.lose.currentTime=0; els.lose.play().catch(()=>{});}catch{}
-  if(navigator.vibrate) navigator.vibrate([80,40,80]);
-  player = { ...start };
-}
-
-function checkWin(){
-  if(player.x===exitC.x && player.y===exitC.y){
-    running=false; if(timerId){clearInterval(timerId); timerId=null;}
-    const key = `BFM_FIXED_${levelName}`;
-    const prev = JSON.parse(localStorage.getItem(key) || 'null');
-    const cur = { deaths, time: timeSec, steps };
-    let bestStr = '—';
-    if(!prev || cur.deaths < prev.deaths || (cur.deaths===prev.deaths && cur.time < prev.time)){
-      localStorage.setItem(key, JSON.stringify(cur));
-      bestStr = `new best! 🎯 deaths ${cur.deaths}, time ${fmtTime(cur.time)}`;
-    } else {
-      bestStr = `best stays: deaths ${prev.deaths}, time ${fmtTime(prev.time)}`;
-    }
-    document.getElementById('winLevel').textContent = levelName;
-    document.getElementById('sumDeaths').textContent = deaths;
-    document.getElementById('sumSteps').textContent = steps;
-    document.getElementById('sumTime').textContent = fmtTime(timeSec);
-    document.getElementById('bestLine').textContent = bestStr;
-    els.winOverlay.style.display='flex';
-    fadeBgm(0.3, 300);
-  }
-}
-
-function move(dx,dy){
-  if(!running) return;
-  const nx = clamp(player.x+dx, 0, N-1);
-  const ny = clamp(player.y+dy, 0, safe.length-1);
-  if(nx===player.x && ny===player.y) return;
-  steps++; player.x=nx; player.y=ny;
-  if(els.assist.checked){ assistBlink=true; assistGlowT=220; }
-  updateHUD();
-  if(!safe[ny][nx]){ lose(); return; }
-  checkWin();
-}
-
-/* ========= Echo sonar ========= */
-let audioCtx=null;
-function ensureAudioCtx(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
-function nearestPitDistance(x,y,R){
-  let best=R+1;
-  for(let dy=-R;dy<=R;dy++){
-    for(let dx=-R;dx<=R;dx++){
-      const nx=x+dx, ny=y+dy;
-      if(ny<0||ny>=safe.length||nx<0||nx>=N) continue;
-      if(!safe[ny][nx]){ const d=Math.abs(dx)+Math.abs(dy); if(d<best) best=d; }
+  // Build board
+  function buildBoard(){
+    el.board.innerHTML='';
+    el.board.style.setProperty('--board-cols', BOARD_COLS);
+    el.board.style.setProperty('--board-rows', BOARD_ROWS);
+    for(let i=1;i<=TILE_COUNT;i++){
+      const spec = SPECIALS[i];
+      const div = ce('div','cell'+(spec?(' type-'+spec.type):''));
+      div.dataset.index = i;
+      const badge = spec ? badgeFor(spec.type) : '';
+      const icon = ce('div','icon', spec ? (spec.icon) : '');
+      const label = spec ? (spec.label) : 'Journey';
+      div.innerHTML = `<span class="idx">#${i}</span>${icon.outerHTML}<div class="small">${label}</div>${badge}`;
+      // place cell in grid
+      const {row,col} = serpentineIndexToGrid(i);
+      div.style.gridRow = (row+1);
+      div.style.gridColumn = (col+1);
+      el.board.appendChild(div);
     }
   }
-  return best===R+1?R:best;
-}
-function echoPing(){
-  if(!running || echoUses<=0) return;
-  echoUses--; updateHUD();
-  ensureAudioCtx();
-  const d = nearestPitDistance(player.x, player.y, 5);
-  const freq = 220 + (5 - d) * 90;
-  const dur  = 0.12 + (5 - d) * 0.02;
-  const gain = audioCtx.createGain();
-  const osc = audioCtx.createOscillator();
-  osc.type='sine'; osc.frequency.value=freq;
-  gain.gain.value=0.0001; osc.connect(gain).connect(audioCtx.destination);
-  const now=audioCtx.currentTime; osc.start();
-  gain.gain.exponentialRampToValueAtTime(0.08, now+0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now+dur);
-  osc.stop(now+dur+0.02);
-  if(navigator.vibrate) navigator.vibrate(25);
-  assistBlink=true; assistGlowT=120;
-}
+  function badgeFor(type){
+    const map = {
+      quiz: '<div class="badge-chip mt-1 chip-quiz">QUIZ</div>',
+      bless:'<div class="badge-chip mt-1 chip-bless">BLESSING</div>',
+      chal: '<div class="badge-chip mt-1 chip-chal">CHALLENGE</div>',
+      pray: '<div class="badge-chip mt-1 chip-pray">PRAYER</div>',
+      story:'<div class="badge-chip mt-1 chip-story">STORY</div>',
+      start:'<div class="badge-chip mt-1 chip-story">START</div>',
+      finish:'<div class="badge-chip mt-1 chip-story">FINISH</div>',
+    };
+    return map[type] || '';
+  }
 
-/* ========= Input ========= */
-function bindPad(btn,dx,dy){
-  let hold=null; const go=()=>move(dx,dy);
-  btn.addEventListener('touchstart',e=>{e.preventDefault();go();hold=setInterval(go,160);});
-  btn.addEventListener('mousedown',e=>{e.preventDefault();go();hold=setInterval(go,160);});
-  const stop=()=>{if(hold){clearInterval(hold);hold=null;}}
-  btn.addEventListener('touchend',stop);btn.addEventListener('touchcancel',stop);
-  btn.addEventListener('mouseup',stop);btn.addEventListener('mouseleave',stop);
-}
-bindPad(els.padUp,0,-1); bindPad(els.padDown,0,1); bindPad(els.padLeft,-1,0); bindPad(els.padRight,1,0);
+  // Pawns
+  const COLORS = ['red','blue','green','yellow'];
+  function placePawns(){
+    // remove old
+    el.board.querySelectorAll('.pawn').forEach(n=>n.remove());
+    for(const p of players){
+      const idx = clamp(p.position,1,TILE_COUNT);
+      const cell = el.board.querySelector(`.cell[data-index="${idx}"]`);
+      if(!cell) continue;
+      const pos = cellCenterPos(cell);
+      const pawn = ce('div', 'pawn '+p.color);
+      pawn.style.left = (pos.x + offsetForStack(p).x) + 'px';
+      pawn.style.top  = (pos.y + offsetForStack(p).y) + 'px';
+      pawn.title = `${p.name} @ ${idx}`;
+      el.board.appendChild(pawn);
+    }
+  }
+  function offsetForStack(p){
+    // small offset so multiple pawns in same cell don't overlap
+    const i = players.indexOf(p);
+    const offsets = [
+      {x:-12,y:-10},{x:12,y:-10},{x:-12,y:10},{x:12,y:10}
+    ];
+    return offsets[i % offsets.length];
+  }
 
-// Center: long-press Echo
-(function(){
-  let timer=null;
-  const down=e=>{e.preventDefault();timer=setTimeout(()=>{echoPing();timer=null;},350);}
-  const up=()=>{if(timer){clearTimeout(timer);timer=null;}}
-  ['touchstart','mousedown'].forEach(ev=>els.padCenter.addEventListener(ev,down));
-  ['touchend','touchcancel','mouseup','mouseleave'].forEach(ev=>els.padCenter.addEventListener(ev,up));
+  // Timer
+  function startTimer(totalSeconds){
+    secondsLeft = totalSeconds;
+    updateTimerUI();
+    timerId = setInterval(()=>{
+      secondsLeft--;
+      if(secondsLeft<=10 && secondsLeft>0) play(el.sfxTick);
+      if(secondsLeft<=0){ clearInterval(timerId); timerId=null; timeUp(); }
+      updateTimerUI();
+    },1000);
+  }
+  function updateTimerUI(){
+    const m = Math.floor(secondsLeft/60).toString().padStart(2,'0');
+    const s = (secondsLeft%60).toString().padStart(2,'0');
+    el.timer.textContent = `${m}:${s}`;
+  }
+  function timeUp(){
+    gameOver = true;
+    showModal('Time\'s up ⏳', `
+      <p class="mb-0">The class time ended. Remember: even if the journey isn’t finished, <strong>we are one family in Christ</strong> today.</p>
+    `, [{label:'OK', cls:'btn-primary', cb: closeModal}]);
+  }
+
+  // Modal helpers
+  function showModal(title, html, buttons=[]){
+    el.modalTitle.textContent = title;
+    el.modalBody.innerHTML = html;
+    el.modalFooter.innerHTML = '';
+    buttons.forEach(b=>{
+      const btn = ce('button','btn '+(b.cls||'btn-secondary'));
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.cb || closeModal);
+      el.modalFooter.appendChild(btn);
+    });
+    el.modal.classList.add('show');
+    el.modal.setAttribute('aria-hidden','false');
+  }
+  function closeModal(){
+    el.modal.classList.remove('show');
+    el.modal.setAttribute('aria-hidden','true');
+  }
+
+  // Turn flow
+  function currentPlayer(){ return players[current]; }
+  function nextTurn(){
+    if(gameOver) return;
+    current = (current + 1) % players.length;
+    const p = currentPlayer();
+    el.turnName.textContent = p.name + (p.skipTurns>0?` (waiting ${p.skipTurns})`:``);
+    if(p.skipTurns>0){
+      p.skipTurns--; // consume skip
+      nextTurn(); // immediately pass to next
+      return;
+    }
+  }
+
+  // Move animation (step-by-step)
+  function moveBy(p, steps, cb){
+    if(steps===0){ cb && cb(); return; }
+    const dir = Math.sign(steps);
+    const total = Math.abs(steps);
+    let done = 0;
+    function step(){
+      if(gameOver) return;
+      p.position += dir;
+      p.position = clamp(p.position, 1, TILE_COUNT);
+      placePawns();
+      play(el.sfxMove);
+      done++;
+      if(done<total && p.position>0 && p.position<TILE_COUNT){
+        setTimeout(step, 200);
+      }else{
+        cb && cb();
+      }
+    }
+    step();
+  }
+
+  // Dice roll
+  function roll(){
+    if(!gameStarted || gameOver) return;
+    const p = currentPlayer();
+    if(p.skipTurns>0){ nextTurn(); return; }
+    el.dice.classList.add('shake');
+    play(el.sfxDice);
+    el.rollBtn.disabled = true;
+    const value = 1 + Math.floor(Math.random()*6);
+    setTimeout(()=>{
+      el.dice.classList.remove('shake');
+      el.dice.textContent = ['⚀','⚁','⚂','⚃','⚄','⚅'][value-1];
+      const to = Math.min(TILE_COUNT - p.position, value); // clamp to finish
+      moveBy(p, to, ()=>{
+        onLand(p);
+      });
+    }, 620);
+  }
+
+  // Landing logic
+  function onLand(p){
+    const idx = p.position;
+    if(idx>=TILE_COUNT){ // finish
+      win(p);
+      return;
+    }
+    const spec = SPECIALS[idx];
+    if(!spec || spec.type==='story' || spec.type==='start'){
+      // Story beat
+      const [title, text] = randomStoryForIndex(idx);
+      el.eventText.innerHTML = `<strong>${title}</strong><br>${text}`;
+      nextTurn();
+      el.rollBtn.disabled = false;
+      return;
+    }
+    if(spec.type==='quiz') return handleQuiz(p);
+    if(spec.type==='bless') return handleBlessing(p);
+    if(spec.type==='chal') return handleChallenge(p);
+    if(spec.type==='pray') return handlePrayer(p);
+    if(spec.type==='finish'){ win(p); return; }
+
+    // default
+    nextTurn();
+    el.rollBtn.disabled = false;
+  }
+
+  function randomStoryForIndex(i){
+    // choose themed by region
+    if(i<=6) return STORY_SNIPPETS[0];           // Eden
+    if(i<=10) return STORY_SNIPPETS[2];          // Noah
+    if(i<=16) return STORY_SNIPPETS[3];          // Abraham
+    if(i<=21) return STORY_SNIPPETS[4];          // Jacob/tribes
+    return STORY_SNIPPETS[5];                    // Church today
+  }
+
+  // Handlers
+  function handleQuiz(p){
+    const card = QUIZ_DECK.length ? QUIZ_DECK.pop() : null;
+    if(!card){
+      // no quiz left, treat as story
+      const [title, text] = randomStoryForIndex(p.position);
+      el.eventText.innerHTML = `<strong>${title}</strong><br>${text}`;
+      nextTurn(); el.rollBtn.disabled=false; return;
+    }
+    const optsHtml = card.options.map((opt, idx)=>(
+      `<div class="answer" data-idx="${idx}">${opt}</div>`
+    )).join('');
+    const ref = card.ref ? `<div class="small text-muted mt-2">Ref: ${card.ref}</div>` : '';
+    showModal('Quiz ❓', `
+      <div class="mb-2 fw-bold">${card.question}</div>
+      <div id="answers" class="d-grid gap-2">${optsHtml}</div>
+      ${ref}
+      <div class="small mt-3">Correct: roll again • Wrong: move back 1</div>
+    `);
+    const answers = $('#answers');
+    answers.querySelectorAll('.answer').forEach(a=>{
+      a.addEventListener('click', ()=>{
+        const chosen = +a.dataset.idx;
+        const correct = (chosen === card.answerIndex);
+        if(correct){
+          a.classList.add('correct');
+          play(el.sfxCorrect);
+          setTimeout(()=>{
+            closeModal();
+            toast('Correct! Roll again.');
+            el.rollBtn.disabled=false; // extra roll (no nextTurn)
+          }, 500);
+        }else{
+          a.classList.add('wrong');
+          play(el.sfxWrong);
+          setTimeout(()=>{
+            closeModal();
+            moveBy(p, -1, ()=>{
+              el.eventText.innerHTML = `<strong>Keep going!</strong> Learn and continue.`;
+              nextTurn();
+              el.rollBtn.disabled=false;
+            });
+          }, 500);
+        }
+      }, {once:true});
+    });
+  }
+
+  function handleBlessing(p){
+    const card = BLESSINGS.length ? BLESSINGS.pop() : ['Blessing','You feel encouraged. Move +1.'];
+    play(el.sfxBless);
+    showModal('Blessing 🕊️', `
+      <div class="fw-bold mb-1">${card[0]}</div>
+      <div>${card[1]}</div>
+    `, [{label:'Apply', cls:'btn-success', cb: ()=>{
+      closeModal();
+      const move = /Move \+2/.test(card[1]) ? 2 : /Move \+1/.test(card[1]) ? 1 : 1;
+      moveBy(p, Math.min(move, TILE_COUNT - p.position), ()=>{
+        el.eventText.innerHTML = `<strong>Blessing received.</strong> Keep journeying!`;
+        nextTurn(); el.rollBtn.disabled=false;
+      });
+    }}]);
+  }
+
+  function handleChallenge(p){
+    const card = CHALLENGES.length ? CHALLENGES.pop() : ['Challenge','Move back 1.'];
+    play(el.sfxChal);
+    showModal('Challenge ⚠️', `
+      <div class="fw-bold mb-1">${card[0]}</div>
+      <div>${card[1]}</div>
+    `, [{label:'Apply', cls:'btn-outline-danger', cb: ()=>{
+      closeModal();
+      let delta = 0;
+      if(/back 1/.test(card[1])) delta = -1;
+      moveBy(p, delta, ()=>{
+        if(/skip next/i.test(card[1])) p.skipTurns = (p.skipTurns||0)+1;
+        el.eventText.innerHTML = `<strong>Challenge faced.</strong> God helps us grow.`;
+        nextTurn(); el.rollBtn.disabled=false;
+      });
+    }}]);
+  }
+
+  function handlePrayer(p){
+    const line = PRAYERS.length ? PRAYERS.pop() : 'Pray briefly and move +1.';
+    showModal('Prayer 🙏', `<div>${line}</div>`, [
+      {label:'Done', cls:'btn-primary', cb: ()=>{
+        closeModal();
+        moveBy(p, Math.min(1, TILE_COUNT - p.position), ()=>{
+          el.eventText.innerHTML = `<strong>Prayer strengthens us.</strong>`;
+          nextTurn(); el.rollBtn.disabled=false;
+        });
+      }}
+    ]);
+  }
+
+  function win(p){
+    if(gameOver) return;
+    gameOver = true;
+    play(el.sfxWin);
+    showModal('Finished ✨', `
+      <p class="mb-1"><strong>${p.name}</strong> reached the final tile.</p>
+      <p class="mb-2">We learned: from the first family → Noah → Israel → the Church today — <strong>one family in Christ</strong>.</p>
+    `, [{label:'OK', cls:'btn-primary', cb: closeModal}]);
+  }
+
+  // Init / Start
+  function startGame(){
+    // gather setup
+    const n = +el.playerCount.value;
+    const mins = clamp(+el.minutesInput.value||DEFAULT_MINUTES, 5, 25);
+    secondsLeft = mins*60;
+
+    const names = [
+      el.names[0].value || 'Team 1',
+      el.names[1].value || 'Team 2',
+      el.names[2].value || 'Team 3',
+      el.names[3].value || 'Team 4',
+    ];
+    players = [];
+    for(let i=0;i<n;i++){
+      players.push({id:i, name:names[i], color:COLORS[i], position:1, skipTurns:0});
+    }
+    current = 0; gameOver=false; gameStarted=true;
+
+    buildBoard();
+    placePawns();
+    el.turnName.textContent = players[0].name;
+    el.eventText.innerHTML = `<strong>Start at Eden.</strong> Roll the dice!`;
+
+    el.setup.classList.add('d-none');
+    startTimer(secondsLeft);
+
+    // optional bgm (comment next line to mute by default)
+    // try { el.bgm.volume = 0.25; el.bgm.play().catch(()=>{});} catch(e){}
+  }
+
+  // Events
+  el.startBtn.addEventListener('click', ()=> startGame());
+  el.rollBtn.addEventListener('click', ()=> roll());
+  document.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); roll(); }});
+  el.modalClose.addEventListener('click', closeModal);
+  el.endBtn.addEventListener('click', ()=>{
+    if(!gameOver){
+      showModal('End game?', `<div>End the session now?</div>`, [
+        {label:'Cancel', cls:'btn-secondary', cb: closeModal},
+        {label:'End', cls:'btn-danger', cb: ()=>{ closeModal(); gameOver=true; toast('Session ended'); }}
+      ]);
+    }
+  });
+
+  // Build initial board (for preview)
+  buildBoard();
+  updateTimerUI();
+
 })();
-
-// Swipe
-let touchStart=null;
-canvas.addEventListener('touchstart',e=>{
-  if(!running) return; const t=e.changedTouches[0];
-  touchStart={x:t.clientX,y:t.clientY};
-});
-canvas.addEventListener('touchend',e=>{
-  if(!running||!touchStart) return;
-  const t=e.changedTouches[0]; const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y;
-  const adx=Math.abs(dx), ady=Math.abs(dy);
-  if(Math.max(adx,ady)>24){ if(adx>ady) move(dx>0?1:-1,0); else move(0,dy>0?1:-1); }
-  touchStart=null;
-});
-
-// Keyboard
-addEventListener('keydown',e=>{
-  const k=e.key.toLowerCase();
-  if(['arrowup','w'].includes(k)){move(0,-1);e.preventDefault();}
-  else if(['arrowdown','s'].includes(k)){move(0,1);e.preventDefault();}
-  else if(['arrowleft','a'].includes(k)){move(-1,0);e.preventDefault();}
-  else if(['arrowright','d'].includes(k)){move(1,0);e.preventDefault();}
-  else if(k===' '){echoPing();e.preventDefault();}
-});
-
-/* ========= Audio ========= */
-let muted=false;
-function fadeBgm(target=0.7,ms=300){
-  const a=els.bgm, start=a.volume, t0=performance.now();
-  function step(){ const p=clamp((performance.now()-t0)/ms,0,1); a.volume=start+(target-start)*p; if(p<1) requestAnimationFrame(step); }
-  requestAnimationFrame(step);
-}
-function startBgm(){
-  if(muted) return;
-  els.bgm.volume=0;
-  els.bgm.play().then(()=>fadeBgm(0.6,500)).catch(()=>{ /* user gesture needed */ });
-}
-function toggleMute(){
-  muted=!muted; els.bgm.muted=muted; els.lose.muted=muted;
-  els.btnMute.textContent = muted?'🔇':'🔊';
-  els.btnMute2.textContent = els.btnMute.textContent;
-}
-
-/* ========= Start/Reset/Print ========= */
-function startRun(){
-  try{
-    loadLevel(els.levelSel.value);
-  }catch(err){
-    alert(err.message); return;
-  }
-  resize(); running=true; timeSec=0; updateHUD(); startTimer();
-  els.startOverlay.style.display='none'; els.winOverlay.style.display='none'; startBgm();
-}
-function resetRun(){
-  // reload same level
-  loadLevel(levelName);
-  timeSec=0; startTime=Date.now(); updateHUD();
-  if(!muted) fadeBgm(0.6,150);
-}
-function printGrid(){
-  const H = safe.length, W = N;
-  const html = `
-  <!doctype html><html><head><meta charset="utf-8"><title>Grid ${W}×${H}</title>
-  <style>
-    body{margin:20px;font-family:system-ui} h1{font-size:16px;margin:0 0 10px}
-    table{border-collapse:collapse} td{width:22px;height:22px;border:1px solid #444}
-    @media print { body{margin:0} td{width:18px;height:18px} }
-  </style></head><body>
-  <h1>Blind Fault Maze — ${W}×${H} (level: ${levelName})</h1>
-  <table>
-    ${Array.from({length:H},()=>'<tr>'+Array.from({length:W},()=>'<td></td>').join('')+'</tr>').join('')}
-  </table></body></html>`;
-  const w = window.open('', '_blank'); w.document.write(html); w.document.close();
-}
-
-/* ========= Buttons ========= */
-els.btnStart.addEventListener('click', startRun);
-els.btnReset.addEventListener('click', resetRun);
-els.btnPrint.addEventListener('click', printGrid);
-els.btnPing.addEventListener('click', echoPing);
-els.btnMute.addEventListener('click', toggleMute);
-els.btnMute2.addEventListener('click', toggleMute);
-els.btnReplay.addEventListener('click', ()=>{ els.winOverlay.style.display='none'; startRun(); });
-els.btnClose.addEventListener('click', ()=>{ els.winOverlay.style.display='none'; els.startOverlay.style.display='flex'; fadeBgm(0.3, 150); });
-
-/* ========= Boot ========= */
-resize(); render();
 </script>
 </body>
 </html>
