@@ -9,13 +9,13 @@
   :root{
     --hud-h: 56px;
     --sidebar-w: 300px;
-    --board-cols: 12;        /* >=100 клеток: 12x10 = 120 */
+    --board-cols: 12;                    /* 12 x 10 = 120 клеток */
     --board-rows: 10;
-    --cell-size: 60px;       /* вычисляется JS под экран */
+    --cell-size: 60px;                   /* вычисляется JS */
     --cell-gap: 8px;
   }
   html,body{height:100%; margin:0; background:#efe9d9; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Ubuntu,Cantarell,"Helvetica Neue",Arial,"Apple Color Emoji","Segoe UI Emoji";}
-  /* App grid: top bar + board + sidebar */
+  /* Layout: top bar + board + sidebar */
   .app{
     display:grid;
     grid-template-rows: var(--hud-h) 1fr;
@@ -57,8 +57,8 @@
     user-select:none; transition:transform .12s ease;
   }
   .cell:hover{transform:translateY(-2px)}
-  .cell .idx{position:absolute; top:4px; left:6px; font-size:10px; opacity:.6}
-  /* only chips, no labels/icons */
+  .cell .idx{position:absolute; top:4px; left:6px; font-size:10px; opacity:.5}
+  /* Only colored chips (no text labels on tiles) */
   .badge-chip{font-size:10px; color:#fff; display:inline-block; padding:2px 6px; border-radius:999px}
   .chip-quiz{background:#f59e0b}
   .chip-bless{background:#10b981}
@@ -141,9 +141,9 @@
     <div class="brand">🗺️ Путь Веры</div>
   </div>
 
-  <!-- Board area -->
+  <!-- Board -->
   <div class="stage">
-    <section id="board" class="board" aria-label="Игровое поле"><!-- cells via JS --></section>
+    <section id="board" class="board" aria-label="Игровое поле"></section>
   </div>
 
   <!-- Sidebar -->
@@ -198,7 +198,7 @@
   </div>
 </section>
 
-<!-- Big modal for events / quizzes -->
+<!-- Modal -->
 <div id="modal" class="modal-backdrop-custom" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="modal-card">
     <div class="d-flex justify-content-between align-items-start">
@@ -231,104 +231,83 @@
     const S = {};
     S[1] = {type:'start'};
     S[TILE_COUNT] = {type:'finish'};
-    // story beats
     [6, 20, 40, 60, 85, 110].forEach(i=>{ if(i<TILE_COUNT) S[i]={type:'story'}; });
-    // quizzes
     [10,12,18,24,28,33,36,42,48,52,55,58,63,66,69,73,76,83,88,94,97,101,104,108,112,116].forEach(i=>{ if(i<TILE_COUNT) S[i]={type:'quiz'}; });
-    // blessings
     [8,14,22,30,38,46,54,62,70,78,86,95,103,111,118].forEach(i=>{ if(i<TILE_COUNT) S[i]={type:'bless'}; });
-    // challenges
     [9,16,26,34,44,50,56,64,72,82,90,98,106,114].forEach(i=>{ if(i<TILE_COUNT) S[i]={type:'chal'}; });
     return S;
   }
   const SPECIALS = buildSpecials();
 
-  // ---------- Decks ----------
-  function q(question, options, answerIndex, ref){ return {question, options, answerIndex, ref}; }
+  // ---------- Helpers ----------
+  function $(q,scope=document){ return scope.querySelector(q); }
+  function ce(tag, cls, html){ const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
   function shuffle(a){ const arr=[...a]; for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
-  const QUIZ_DECK = shuffle([
-    // Eden & early Genesis
+  // ---------- A/B DECKS ----------
+  function q(question, options, answerIndex, ref){ return {question, options, answerIndex, ref}; }
+
+  // QUIZ: A for leader/equal, B for behind
+  const QUIZ_A = shuffle([
     q('Как звали первых двух сыновей Адама и Евы?', ['Каин и Авель','Давид и Ионафан','Пётр и Андрей'], 0, 'Быт. 4:1–2'),
     q('Где жила первая семья?', ['Эдем','Иерусалим','Назарет'], 0, 'Быт. 2'),
-    q('Кто убил Авеля?', ['Каин','Ламех','Нимрод'], 0, 'Быт. 4'),
-    q('Кого Бог дал вместо Авеля?', ['Сифа','Сима','Саула'], 0, 'Быт. 4:25'),
-
-    // Noah & Flood
     q('Кто построил ковчег?', ['Ной','Моисей','Авраам'], 0, 'Быт. 6–9'),
-    q('Сколько дней лился дождь во время потопа?', ['40','7','3'], 0, 'Быт. 7:12'),
-    q('Какой знак Бог дал после потопа?', ['Радуга','Огонь','Каменник'], 0, 'Быт. 9:13'),
+    q('Какой знак Бог дал после потопа?', ['Радуга','Огонь','Скиния'], 0, 'Быт. 9:13'),
     q('Как звали сыновей Ноя?', ['Сим, Хам, Иафет','Каин, Авель, Сиф','Пётр, Иаков, Иоанн'], 0, 'Быт. 5–10'),
-
-    // Abraham
-    q('Из какой страны Бог позвал Авраама?', ['Ур Халдейский','Египет','Сидон'], 0, 'Быт. 11:31'),
-    q('Что Бог пообещал Аврааму?', ['Великий народ','Гору золота','Дворец'], 0, 'Быт. 12:2'),
     q('Имя сына обетования Авраама и Сары:', ['Исаак','Ишмаил','Есау'], 0, 'Быт. 21'),
-    q('Как звали племянника Авраама?', ['Лот','Иов','Самсон'], 0, 'Быт. 12–19'),
-
-    // Jacob / 12 tribes
     q('Другое имя Иакова — это…', ['Израиль','Исав','Иуда'], 0, 'Быт. 32:28'),
-    q('Сколько сыновей было у Иакова?', ['12','10','7'], 0, 'Быт. 35:22–26'),
-    q('Как звали любимого сына Иакова, получившего особую одежду?', ['Иосиф','Дан','Гад'], 0, 'Быт. 37'),
-    q('Кто продал Иосифа в Египет?', ['Братья','Филистимляне','Моавитяне'], 0, 'Быт. 37'),
-
-    // Israel & Moses
+    q('Сколько сыновей у Иакова?', ['12','10','7'], 0, 'Быт. 35:22–26'),
     q('Кто вывел Израиль из Египта?', ['Моисей','Иисус Навин','Самуил'], 0, 'Исх. 12–14'),
-    q('На какой горе Моисей получил заповеди?', ['Синай','Кармил','Голгофа'], 0, 'Исх. 19–20'),
-    q('Сколько заповедей на скрижалях?', ['10','7','12'], 0, 'Исх. 20'),
-
-    // Kings & Prophets
-    q('Кто был пастухом и стал царём Израиля?', ['Давид','Саул','Соломон'], 0, '1 Цар. 16'),
-    q('Кто построил первый храм в Иерусалиме?', ['Соломон','Давид','Илия'], 0, '3 Цар. 6'),
-
-    // New Testament & Church
+    q('На какой горе даны заповеди?', ['Синай','Кармил','Голгофа'], 0, 'Исх. 19–20'),
     q('Кто родился в Вифлееме?', ['Иисус','Моисей','Иоанн'], 0, 'Мф. 2'),
-    q('Кто крестил Иисуса?', ['Иоанн Креститель','Пётр','Иаков'], 0, 'Мф. 3'),
-    q('Что произошло в день Пятидесятницы?', ['Сошёл Святой Дух','Разрушился храм','Сошла манна'], 0, 'Деян. 2'),
-    q('Кто написал много посланий Церкви?', ['Павел','Ноах','Нахор'], 0, 'Деян./Послания'),
     q('Кто глава Церкви?', ['Христос','Пётр','Моисей'], 0, 'Еф. 1:22'),
+  ]);
+  const QUIZ_B = shuffle([
+    q('Кого Бог дал вместо Авеля?', ['Сифа','Сима','Саула'], 0, 'Быт. 4:25'),
+    q('Сколько дней шёл дождь во время потопа?', ['40','7','3'], 0, 'Быт. 7:12'),
+    q('Из какой страны Бог позвал Авраама?', ['Ур Халдейский','Египет','Сидон'], 0, 'Быт. 11:31'),
+    q('Как звали племянника Авраама?', ['Лот','Иов','Самсон'], 0, 'Быт. 12–19'),
+    q('Кто продал Иосифа в Египет?', ['Братья','Филистимляне','Моавитяне'], 0, 'Быт. 37'),
+    q('Сколько заповедей на скрижалях?', ['10','7','12'], 0, 'Исх. 20'),
+    q('Кто был пастухом и стал царём?', ['Давид','Саул','Соломон'], 0, '1 Цар. 16'),
+    q('Кто построил первый храм?', ['Соломон','Давид','Илия'], 0, '3 Цар. 6'),
+    q('Что произошло в Пятидесятницу?', ['Сошёл Святой Дух','Разрушился храм','Сошла манна'], 0, 'Деян. 2'),
     q('Что объединяет христиан как семью?', ['Вера во Христа','Один язык','Одна страна'], 0, 'Гал. 3:26–28'),
-
-    // Extra
-    q('Как звали родителей Иоанна Крестителя?', ['Захария и Елизавета','Иосиф и Мария','Анна и Елкана'], 0, 'Лк. 1'),
     q('Где вырос Иисус?', ['Назарет','Вифлеем','Иерихон'], 0, 'Лк. 2'),
-    q('Кто был братом Марии и Марфы?', ['Лазарь','Никодим','Вартимей'], 0, 'Ин. 11'),
-    q('Кого назвали «сынами грома»?', ['Иакова и Иоанна','Петра и Андрея','Фому и Филиппа'], 0, 'Мк. 3:17'),
-    q('Сколько учеников избрал Иисус?', ['12','70','3'], 0, 'Лк. 6'),
-    q('Кто увидел радугу как знак завета?', ['Ной','Авраам','Моисей'], 0, 'Быт. 9'),
-    q('Кого Бог испытал просьбой принести сына?', ['Авраама','Иакова','Самуила'], 0, 'Быт. 22')
+    q('Кого прозвали «сынами грома»?', ['Иакова и Иоанна','Петра и Андрея','Фому и Филиппа'], 0, 'Мк. 3:17'),
   ]);
 
-  const BLESSINGS = shuffle([
-    ['Ободрение','Скажите, за что вы благодарны в семье. Идите вперёд на +1.'],
-    ['Служение','Назовите, как поможете дома. Идите вперёд на +2.'],
-    ['Единство','Скажите вместе: «Мы — одна команда!». Идите вперёд на +1.'],
-    ['Надежда','Поделитесь библейским обещанием, которое вас вдохновляет. Идите вперёд на +1.'],
-    ['Добрые слова','Сделайте комплимент соседу по команде. Идите вперёд на +1.'],
-    ['Поддержка','Расскажите, как поддержите друга в классе. Идите вперёд на +2.']
+  // BLESSINGS: short boosts; A and B differ
+  const BLESS_A = shuffle([
+    ['Ободрение','Скажите, за что вы благодарны в семье. +1 шаг.'],
+    ['Единство','Скажите вместе: «Мы — одна команда!». +1 шаг.'],
+    ['Поддержка','Как поддержите друга в классе? +2 шага.'],
+    ['Добрые слова','Комплимент напарнику. +1 шаг.'],
+  ]);
+  const BLESS_B = shuffle([
+    ['Надежда','Поделитесь библейским обещанием. +1 шаг.'],
+    ['Служение','Назовите, как поможете дома. +2 шага.'],
+    ['Радость','Назовите хорошее событие недели. +1 шаг.'],
+    ['Внимание','5 секунд тишины и улыбка команде. +1 шаг.'],
   ]);
 
-  const CHALLENGES = shuffle([
-    ['Терпение','Пропустите следующий ход.'],
-    ['Честность','Назовите, что готовы улучшать дома. Хода нет.'],
-    ['Уступчивость','Назад на 1 и скажите: «Пусть будет по-твоему».'],
-    ['Слушание','Каждый участник говорит по предложению, вы не перебиваете. Хода нет.'],
-    ['Забота','Назначьте маленькое домашнее дело на сегодня. Назад на 1.'],
-    ['Вежливость','Скажите трём людям: «Спасибо за…». Хода нет.'],
-    ['Мир','Если спор — предложите мирно решить. Пропустите следующий ход.'],
-    ['Щедрость','Идея: чем поделиться дома. Назад на 1.'],
-    ['Поддержка','Скажите напарнику добрые слова. Хода нет.'],
-    ['Ответственность','Обещайте выполнить дело без напоминаний. Назад на 1.'],
-    ['Сотрудничество','Придумайте общее дело всей командой. Хода нет.'],
-    ['Прощение','Произнесите пример извинения. Пропустите следующий ход.'],
-    ['Внимание','5 секунд молчания и внимания к команде. Хода нет.'],
-    ['Радость','Расскажите о хорошем семейном событии. Назад на 1.'],
-    ['Помощь старшим/младшим','Предложите реальную помощь сегодня. Хода нет.'],
-    ['Порядок','Скажите, что сегодня уберёте/помоете. Назад на 1.'],
-    ['Доброта','Придумайте сюрприз доброты для дома. Хода нет.'],
-    ['Ответ на нужду','Назовите чью нужду вы заметили. Пропустите следующий ход.'],
-    ['Тихая помощь','Сделайте добро без слов (идея). Назад на 1.'],
-    ['Надёжность','Обещайте прийти вовремя. Хода нет.']
+  // CHALLENGES: family-building tasks (no movement penalties in text)
+  const CHAL_A = shuffle([
+    ['Терпение','Согласны выслушать мнение партнёра? Если да — продолжайте ход. Иначе — остановка здесь.'],
+    ['Честность','Назовите, что готовы улучшать дома. Справились — продолжайте.'],
+    ['Уступчивость','Скажите: «Пусть будет по-твоему». Справились — продолжайте.'],
+    ['Ответственность','Обещайте выполнить одно дело без напоминаний. Справились — продолжайте.'],
+    ['Сотрудничество','Придумайте общее дело всей командой. Справились — продолжайте.'],
+    ['Прощение','Произнесите пример извинения. Справились — продолжайте.'],
+  ]);
+  const CHAL_B = shuffle([
+    ['Забота','Назначьте маленькое домашнее дело на сегодня. Справились — продолжайте.'],
+    ['Вежливость','Скажите «Спасибо за…» двум людям. Справились — продолжайте.'],
+    ['Щедрость','Идея: чем поделиться дома? Справились — продолжайте.'],
+    ['Поддержка','Скажите напарнику добрые слова. Справились — продолжайте.'],
+    ['Порядок','Что сегодня уберёте/помоете? Справились — продолжайте.'],
+    ['Надёжность','Обещайте прийти вовремя куда-то. Справились — продолжайте.'],
   ]);
 
   const STORY_SNIPPETS = [
@@ -345,6 +324,7 @@
   let current = 0;
   let gameStarted = false;
   let gameOver = false;
+  let traversing = false;
 
   // ---------- DOM ----------
   const el = {
@@ -375,11 +355,8 @@
     sfxChal: $('#sfxChal'),
     sfxWin: $('#sfxWin'),
   };
-  function $(q,scope=document){ return scope.querySelector(q); }
-  function ce(tag, cls, html){ const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; }
-  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 
-  // ---------- Fit board to available area ----------
+  // ---------- Fit board ----------
   function fitBoard(){
     const stage = document.querySelector('.stage').getBoundingClientRect();
     const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell-gap')) || 8;
@@ -420,7 +397,6 @@
       const spec = SPECIALS[i];
       const div = ce('div','cell'+(spec?(' type-'+spec.type):''));
       div.dataset.index = i;
-      // ONLY index and chip (no labels/icons)
       const chip = spec ? badgeFor(spec.type) : '';
       div.innerHTML = `<span class="idx">#${i}</span>${chip}`;
       const {row,col} = serpentineIndexToGrid(i);
@@ -479,8 +455,13 @@
   }
   function hideBigDice(){ el.diceOverlay.classList.remove('show'); }
 
-  // ---------- Turn flow ----------
+  // ---------- Turn / position helpers ----------
   function currentPlayer(){ return players[current]; }
+  function otherPlayer(){ return players[(current+1)%players.length]; }
+  function isBehind(p){
+    const other = otherPlayer();
+    return p.position < other.position;
+  }
   function nextTurn(){
     if(gameOver) return;
     current = (current + 1) % players.length;
@@ -488,40 +469,68 @@
     el.turnName.textContent = p.name + (p.skipTurns>0?` (пропуск хода ${p.skipTurns})`:``);
     if(p.skipTurns>0){
       p.skipTurns--;
-      nextTurn();
-      return;
+      // still consume the turn:
+      current = (current + 1) % players.length;
+      el.turnName.textContent = currentPlayer().name;
     }
   }
 
-  // ---------- Movement ----------
-  function moveBy(p, steps, cb){
-    if(steps===0){ cb && cb(); return; }
-    const dir = Math.sign(steps);
-    const total = Math.abs(steps);
-    let done = 0;
-    function step(){
-      if(gameOver) return;
-      p.position += dir;
-      p.position = clamp(p.position, 1, TILE_COUNT);
-      placePawns();
-      try{ el.sfxMove.currentTime=0; el.sfxMove.play().catch(()=>{});}catch(e){}
-      done++;
-      if(done<total && p.position>0 && p.position<TILE_COUNT){
-        setTimeout(step, 120);
-      }else{
-        cb && cb();
-      }
+  // ---------- Movement that handles EVERY passed tile ----------
+  function moveOneStep(p, dir, cb){
+    p.position += dir;
+    p.position = clamp(p.position, 1, TILE_COUNT);
+    placePawns();
+    try{ el.sfxMove.currentTime=0; el.sfxMove.play().catch(()=>{});}catch(e){}
+    setTimeout(cb, 110);
+  }
+
+  // visit tile: returns via callback('continue'|'stop')
+  function visitTile(p, idx, cbDecision){
+    if(idx>=TILE_COUNT){ win(p); cbDecision('stop'); return; }
+    const spec = SPECIALS[idx];
+    // empty or story/start -> show and continue
+    if(!spec || spec.type==='start' || spec.type==='story'){
+      const [title, text] = randomStoryForIndex(idx);
+      el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div class="mt-1">${text}</div>`;
+      showModal('ИСТОРИЯ 📜', `<div class="fs-5 mb-2">${title}</div><div>${text}</div>`, [
+        {label:'Далее', cls:'btn-primary', cb: ()=>{ closeModal(); cbDecision('continue'); }}
+      ]);
+      return;
     }
-    step();
+    if(spec.type==='quiz'){
+      return handleQuiz(p, cbDecision);
+    }
+    if(spec.type==='bless'){
+      return handleBlessing(p, cbDecision);
+    }
+    if(spec.type==='chal'){
+      return handleChallenge(p, cbDecision);
+    }
+    if(spec.type==='finish'){ win(p); cbDecision('stop'); return; }
+    cbDecision('continue');
+  }
+
+  // Traverse N steps: pause for each event; stop if an event fails
+  function traverse(p, stepsRemaining, done){
+    if(stepsRemaining<=0){ done && done(); return; }
+    moveOneStep(p, +1, ()=>{
+      const here = p.position;
+      visitTile(p, here, (decision)=>{
+        if(decision==='stop'){ done && done(); }
+        else{ traverse(p, stepsRemaining-1, done); }
+      });
+    });
   }
 
   // ---------- Roll ----------
   function roll(){
-    if(!gameStarted || gameOver) return;
+    if(!gameStarted || gameOver || traversing) return;
     const p = currentPlayer();
     if(p.skipTurns>0){ nextTurn(); return; }
 
-    // big dice animation
+    traversing = true;
+    el.rollBtn.disabled = true;
+
     const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
     let spins = 10 + Math.floor(Math.random()*8);
     let i = 0;
@@ -539,48 +548,38 @@
         showBigDice(faceFinal);
         setTimeout(()=>{
           hideBigDice();
-          const to = Math.min(TILE_COUNT - p.position, value);
-          moveBy(p, to, ()=> onLand(p));
+          const stepsToEdge = TILE_COUNT - currentPlayer().position;
+          const steps = Math.min(stepsToEdge, value);
+          traverse(p, steps, ()=>{
+            traversing = false;
+            el.rollBtn.disabled = false;
+            if(!gameOver){ nextTurn(); }
+          });
         }, 420);
       }
     }, 60);
   }
 
-  // ---------- Landing ----------
-  function onLand(p){
-    const idx = p.position;
-    if(idx>=TILE_COUNT){ win(p); return; }
-    const spec = SPECIALS[idx];
-    if(!spec || spec.type==='start' || spec.type==='story'){
-      const [title, text] = randomStoryForIndex(idx);
-      el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div class="mt-1">${text}</div>`;
-      showModal('ИСТОРИЯ 📜', `<div class="fs-5 mb-2">${title}</div><div>${text}</div>`, [{label:'Далее', cls:'btn-primary', cb: ()=>{ closeModal(); nextTurn(); }}]);
-      return;
-    }
-    if(spec.type==='quiz') return handleQuiz(p);
-    if(spec.type==='bless') return handleBlessing(p);
-    if(spec.type==='chal') return handleChallenge(p);
-    if(spec.type==='finish'){ win(p); return; }
-
-    nextTurn();
+  // ---------- Event handlers (A/B variant aware) ----------
+  function getFromDeck(p, deckA, deckB){
+    const useB = isBehind(p);
+    const deck = useB ? deckB : deckA;
+    if(deck.length) return {card: deck.pop(), from: useB?'B':'A'};
+    // fallback to other deck if chosen is empty
+    const alt = useB ? deckA : deckB;
+    if(alt.length) return {card: alt.pop(), from: useB?'A':'B'};
+    return {card:null, from:null};
   }
 
-  function randomStoryForIndex(i){
-    if(i<=12) return STORY_SNIPPETS[0];
-    if(i<=28) return STORY_SNIPPETS[1];
-    if(i<=48) return STORY_SNIPPETS[2];
-    if(i<=72) return STORY_SNIPPETS[3];
-    if(i<=96) return STORY_SNIPPETS[4];
-    return STORY_SNIPPETS[5];
-  }
-
-  // ---------- Handlers ----------
-  function handleQuiz(p){
-    const card = QUIZ_DECK.length ? QUIZ_DECK.pop() : null;
+  function handleQuiz(p, cbDecision){
+    const {card} = getFromDeck(p, QUIZ_A, QUIZ_B);
     if(!card){
+      // no quiz left -> treat as short story continue
       const [title, text] = randomStoryForIndex(p.position);
       el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div class="mt-1">${text}</div>`;
-      showModal('ИСТОРИЯ 📜', `<div class="fs-5 mb-2">${title}</div><div>${text}</div>`, [{label:'Далее', cls:'btn-primary', cb: ()=>{ closeModal(); nextTurn(); }}]);
+      showModal('ИСТОРИЯ 📜', `<div class="fs-5 mb-2">${title}</div><div>${text}</div>`, [
+        {label:'Далее', cls:'btn-primary', cb: ()=>{ closeModal(); cbDecision('continue'); }}
+      ]);
       return;
     }
     const optsHtml = card.options.map((opt, idx)=>(
@@ -591,7 +590,7 @@
       <div class="mb-2 fw-bold fs-5">${card.question}</div>
       <div id="answers" class="d-grid gap-2">${optsHtml}</div>
       ${ref}
-      <div class="small mt-3">Правильно — ещё бросок. Неправильно — назад на 1.</div>
+      <div class="small mt-3">Если верно — продолжаете оставшиеся шаги. Если нет — <strong>остаетесь здесь</strong>, ход заканчивается.</div>
     `);
     const answers = $('#answers');
     answers.querySelectorAll('.answer').forEach(a=>{
@@ -600,48 +599,59 @@
         const correct = (chosen === card.answerIndex);
         if(correct){
           a.classList.add('correct');
-          el.sideNotes.innerHTML = `<div class="fw-bold">Верно!</div><div>${card.question}</div>`;
           try{ el.sfxCorrect.currentTime=0; el.sfxCorrect.play().catch(()=>{});}catch(e){}
-          setTimeout(()=>{ closeModal(); el.rollBtn.disabled=false; }, 450);
+          el.sideNotes.innerHTML = `<div class="fw-bold">Верно!</div><div>${card.question}</div>`;
+          setTimeout(()=>{ closeModal(); cbDecision('continue'); }, 450);
         }else{
           a.classList.add('wrong');
-          el.sideNotes.innerHTML = `<div class="fw-bold">Неверно</div><div>${card.question}</div>`;
           try{ el.sfxWrong.currentTime=0; el.sfxWrong.play().catch(()=>{});}catch(e){}
-          setTimeout(()=>{
-            closeModal();
-            moveBy(p, -1, ()=>{ nextTurn(); });
-          }, 450);
+          el.sideNotes.innerHTML = `<div class="fw-bold">Неверно</div><div>Команда остаётся на клетке #${p.position}.</div>`;
+          setTimeout(()=>{ closeModal(); cbDecision('stop'); }, 450);
         }
       }, {once:true});
     });
   }
 
-  function handleBlessing(p){
-    const card = BLESSINGS.length ? BLESSINGS.pop() : ['Благословение','Идите вперёд на +1.'];
+  function handleBlessing(p, cbDecision){
+    const {card} = getFromDeck(p, BLESS_A, BLESS_B) || {};
+    const title = card ? card[0] : 'Благословение';
+    const text  = card ? card[1] : '+1 шаг.';
     try{ el.sfxBless.currentTime=0; el.sfxBless.play().catch(()=>{});}catch(e){}
-    el.sideNotes.innerHTML = `<div class="fw-bold">${card[0]}</div><div>${card[1]}</div>`;
-    showModal('БЛАГОСЛОВЕНИЕ 🕊️', `<div class="fs-5">${card[0]}</div><div class="mt-2">${card[1]}</div>`, [
+    el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div>${text}</div>`;
+    showModal('БЛАГОСЛОВЕНИЕ 🕊️', `<div class="fs-5">${title}</div><div class="mt-2">${text}</div>`, [
       {label:'Применить', cls:'btn-success', cb: ()=>{
         closeModal();
-        const move = /\+2/.test(card[1]) ? 2 : /\+1/.test(card[1]) ? 1 : 1;
-        moveBy(p, Math.min(move, TILE_COUNT - p.position), ()=>{ nextTurn(); });
+        // extra steps from blessing (if mentioned)
+        let extra = /\+2/.test(text) ? 2 : /\+1/.test(text) ? 1 : 0;
+        if(extra>0){
+          // traverse blessing steps too (with events!)
+          traverse(p, Math.min(extra, TILE_COUNT - p.position), ()=> cbDecision('continue'));
+        }else{
+          cbDecision('continue');
+        }
       }}
     ]);
   }
 
-  function handleChallenge(p){
-    const card = CHALLENGES.length ? CHALLENGES.pop() : ['Испытание','Назад на 1.'];
+  function handleChallenge(p, cbDecision){
+    const {card} = getFromDeck(p, CHAL_A, CHAL_B) || {};
+    const title = card ? card[0] : 'Испытание';
+    const text  = card ? card[1] : 'Выполните маленькое доброе дело. Удалось? — продолжайте.';
     try{ el.sfxChal.currentTime=0; el.sfxChal.play().catch(()=>{});}catch(e){}
-    el.sideNotes.innerHTML = `<div class="fw-bold">${card[0]}</div><div>${card[1]}</div>`;
-    showModal('ИСПЫТАНИЕ ⚠️', `<div class="fs-5">${card[0]}</div><div class="mt-2">${card[1]}</div>`, [
-      {label:'Применить', cls:'btn-outline-danger', cb: ()=>{
-        closeModal();
-        let delta = 0;
-        if(/назад\s*на\s*1/i.test(card[1])) delta = -1;
-        if(/пропустите/i.test(card[1])) currentPlayer().skipTurns = (currentPlayer().skipTurns||0)+1;
-        moveBy(p, delta, ()=>{ nextTurn(); });
-      }}
+    el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div>${text}</div>`;
+    showModal('ИСПЫТАНИЕ ⚠️', `<div class="fs-5">${title}</div><div class="mt-2">${text}</div>`, [
+      {label:'Готово ✅', cls:'btn-success', cb: ()=>{ closeModal(); cbDecision('continue'); }},
+      {label:'Не получилось ⛔', cls:'btn-outline-danger', cb: ()=>{ closeModal(); cbDecision('stop'); }},
     ]);
+  }
+
+  function randomStoryForIndex(i){
+    if(i<=12) return STORY_SNIPPETS[0];
+    if(i<=28) return STORY_SNIPPETS[1];
+    if(i<=48) return STORY_SNIPPETS[2];
+    if(i<=72) return STORY_SNIPPETS[3];
+    if(i<=96) return STORY_SNIPPETS[4];
+    return STORY_SNIPPETS[5];
   }
 
   function win(p){
@@ -656,13 +666,18 @@
   }
 
   // ---------- Start & UI ----------
+  const elRefs = {
+    board: $('#board'), setup: $('#setup'), startBtn: $('#startBtn'),
+    fsBtn: $('#fsBtn'), fsBtnSetup: $('#fsBtnSetup'), rollBtn: $('#rollBtn')
+  };
+
   function startGame(){
     const names = [el.name1.value || 'Красные', el.name2.value || 'Синие'];
     players = [
       {id:0, name:names[0], color:'red',  position:1, skipTurns:0},
       {id:1, name:names[1], color:'blue', position:1, skipTurns:0},
     ];
-    current = 0; gameOver=false; gameStarted=true;
+    current = 0; gameOver=false; gameStarted=true; traversing=false;
     buildBoard(); placePawns(); fitBoard();
     el.turnName.textContent = players[0].name;
     el.sideNotes.innerHTML = `<div class="fw-bold">Старт — Эдем</div><div>Бросайте кубик!</div>`;
@@ -678,13 +693,13 @@
   }
 
   // Events
-  el.startBtn.addEventListener('click', startGame);
-  el.rollBtn.addEventListener('click', roll);
+  $('#startBtn').addEventListener('click', startGame);
+  $('#rollBtn').addEventListener('click', roll);
   document.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); roll(); }});
-  el.modalClose.addEventListener('click', closeModal);
-  el.endBtn.addEventListener('click', ()=>{ if(!gameOver){ showModal('Завершить?', `<div>Закончить партию сейчас?</div>`, [{label:'Отмена', cls:'btn-secondary', cb: closeModal},{label:'Завершить', cls:'btn-danger', cb: ()=>{ closeModal(); gameOver=true; }}]); }});
-  el.fsBtn.addEventListener('click', toggleFullscreen);
-  el.fsBtnSetup.addEventListener('click', toggleFullscreen);
+  $('#modalClose').addEventListener('click', closeModal);
+  $('#endBtn').addEventListener('click', ()=>{ if(!gameOver){ showModal('Завершить?', `<div>Закончить партию сейчас?</div>`, [{label:'Отмена', cls:'btn-secondary', cb: closeModal},{label:'Завершить', cls:'btn-danger', cb: ()=>{ closeModal(); gameOver=true; }}]); }});
+  $('#fsBtn').addEventListener('click', toggleFullscreen);
+  $('#fsBtnSetup').addEventListener('click', toggleFullscreen);
 
   // Initial
   buildBoard(); fitBoard();
