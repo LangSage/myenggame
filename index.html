@@ -16,12 +16,13 @@
   }
   html,body{height:100%; margin:0; background:#efe9d9; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Ubuntu,Cantarell,"Helvetica Neue",Arial,"Apple Color Emoji","Segoe UI Emoji";}
   /* Layout: top bar + board + sidebar */
-  .app{
-    display:grid;
-    grid-template-rows: var(--hud-h) 1fr;
-    grid-template-columns: 1fr var(--sidebar-w);
-    height:100vh;
-  }
+ /* AFTER */
+.app{
+  display:grid;
+  grid-template-rows: 1fr;              /* no header row */
+  grid-template-columns: 1fr var(--sidebar-w);
+  height:100vh;
+}
   .topbar{
     grid-column:1 / span 2;
     display:flex; align-items:center; gap:10px; padding:8px 12px;
@@ -50,7 +51,7 @@
     max-height: 100%;
   }
   .cell{
-    position:relative; border-radius:12px; background:#faf8f2dd;
+    position:relative; border-radius:12px; background: rgba(250, 248, 242, 0.45);   /* ~45% opaque */
     border:2px solid #e7dfcc; backdrop-filter:saturate(1.2) blur(1px);
     display:flex; align-items:center; justify-content:center; text-align:center;
     padding:6px; font-weight:600; font-size:12px; line-height:1.1;
@@ -59,9 +60,9 @@
   .cell:hover{transform:translateY(-2px)}
   .cell .idx{position:absolute; top:4px; left:6px; font-size:10px; opacity:.45}
   /* Only colored chips (no text labels on tiles) */
-  .badge-chip{font-size:10px; color:#fff; display:inline-block; padding:2px 6px; border-radius:999px}
+  .badge-chip{font-size:10px; color:#fff; display:inline-block; padding:2px 6px; border-radius:999px; white-space:nowrap;}
   .chip-quiz{background:#f59e0b}
-  .chip-bless{background:#10b981}
+  .chip-bless{background:#10b981; font-size:9px; padding:2px 8px;}  /* shorter label + a bit wider pad */
   .chip-chal{background:#ef4444}
   .cell.type-start{border-color:#b0d7a6}
   .cell.type-finish{border-color:#b5a6d7}
@@ -90,20 +91,24 @@
   .btn-wide{width:100%}
   .notes{min-height:120px; font-size:15px}
 
-  /* Big event modal */
+  /* Big event modal — projector-sized text */
   .modal-backdrop-custom{
     position:fixed; inset:0; background:rgba(20,16,5,.6);
     display:none; align-items:center; justify-content:center; z-index:60;
   }
   .modal-backdrop-custom.show{display:flex}
   .modal-card{
-    max-width:920px; width:calc(100% - 28px); background:#fff; border-radius:22px; padding:22px;
+    max-width:1100px; width:calc(100% - 40px); background:#fff; border-radius:24px; padding:26px;
     box-shadow:0 20px 60px rgba(0,0,0,.25); border:1px solid #eadfcf;
+    font-size:40px; line-height:1.25;   /* ~40pt look for projector */
   }
-  .answer{border:1px solid #e5e7eb; border-radius:10px; padding:12px; cursor:pointer; background:#fff}
+  #modalTitle{font-size:1.0em; font-weight:800;}  /* relative to 40px base */
+  #modalBody{font-size:1.0em;}
+  .answer{border:2px solid #e5e7eb; border-radius:14px; padding:16px; cursor:pointer; background:#fff}
   .answer:hover{background:#f7fafc}
   .answer.correct{border-color:#10b981; background:#ecfdf5}
   .answer.wrong{border-color:#ef4444; background:#fef2f2}
+  #modalFooter .btn{font-size:.7em; padding:12px 18px; border-width:2px}
 
   /* Full-screen dice overlay */
   .dice-overlay{
@@ -136,9 +141,7 @@
 
 <div class="app">
   <!-- Top bar -->
-  <div class="topbar">
-    <div class="brand">🗺️ Путь Веры</div>
-  </div>
+
 
   <!-- Board -->
   <div class="stage">
@@ -187,8 +190,8 @@
         <input id="name1" class="form-control" value="Красные">
       </div>
       <div class="col-md-6">
-        <label class="form-label">Команда 2 (синие)</label>
-        <input id="name2" class="form-control" value="Синие">
+        <label class="form-label">Команда 2 (желтые)</label>
+        <input id="name2" class="form-control" value="Желтые">
       </div>
       <div class="col-12 d-flex gap-2">
         <button id="startBtn" class="btn btn-primary px-4">Начать игру</button>
@@ -204,7 +207,7 @@
   <div class="modal-card">
     <div class="d-flex justify-content-between align-items-start">
       <h3 id="modalTitle" class="h4 mb-2">—</h3>
-      <button id="modalClose" class="btn btn-sm btn-outline-secondary">Закрыть</button>
+      <button id="modalClose" class="btn btn-sm btn-outline-secondary" style="font-size:20px;padding:8px 12px;border-width:2px;">Закрыть</button>
     </div>
     <div id="modalBody" class="mt-2"></div>
     <div id="modalFooter" class="mt-3 d-flex gap-2 justify-content-end"></div>
@@ -246,6 +249,22 @@
   function ce(tag, cls, html){ const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; }
   function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
   function shuffle(a){ const arr=[...a]; for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+  function shuffleQuizCard(card){
+    const order = Array.from(card.options, (_,i)=>i);
+    shuffle(order);
+    return {
+      question: card.question,
+      options: order.map(i => card.options[i]),
+      answerIndex: order.indexOf(card.answerIndex),
+      ref: card.ref || ''
+    };
+  }
+  function findNextIndexByType(fromIdx, type){
+    for(let i=fromIdx+1;i<=TILE_COUNT;i++){
+      if(SPECIALS[i] && SPECIALS[i].type===type) return i;
+    }
+    return null;
+  }
 
   // ---------- A/B DECKS ----------
   function q(question, options, answerIndex, ref){ return {question, options, answerIndex, ref}; }
@@ -280,47 +299,94 @@
     q('Кого прозвали «сынами грома»?', ['Иакова и Иоанна','Петра и Андрея','Фому и Филиппа'], 0, 'Мк. 3:17'),
   ]);
 
-  // BLESSINGS (A/B different vibes)
+  // ---------- BLESSINGS (varied effects) ----------
+  // effect: 'move' (+amount for current), 'reroll', 'grace', 'jumpBless', 'gift' (to opponent), 'both', 'swap'
   const BLESS_A = shuffle([
-    ['Ободрение','Скажите, за что вы благодарны в семье. +1 шаг.'],
-    ['Единство','«Мы — одна команда!». +1 шаг.'],
-    ['Поддержка','Как поддержите друга в классе? +2 шага.'],
-    ['Добрые слова','Комплимент напарнику. +1 шаг.'],
+    {t:'Ободрение', d:'Скажите, за что благодарны в семье. +1 шаг.', effect:'move', amount:1},
+    {t:'Единство', d:'Скажите: «Мы — одна команда!». +1 шаг.', effect:'move', amount:1},
+    {t:'Поддержка', d:'Как поддержите друга в классе? +2 шага.', effect:'move', amount:2},
+    {t:'Повторный бросок', d:'Получите 1 дополнительный бросок.', effect:'reroll', amount:1},
+    {t:'Благодать', d:'Один раз можно не останавливаться после неверного ответа в викторине.', effect:'grace', amount:1},
+    {t:'К ближайшему благословению', d:'Идите вперёд к ближайшей зелёной клетке (через события).', effect:'jumpBless'},
+    {t:'Щедрость', d:'Подарите соперникам +1 шаг (они пройдут с событиями).', effect:'gift', amount:1},
+    {t:'Вместе вперёд', d:'Обе команды делают +1 шаг.', effect:'both', amount:1},
+    {t:'Обмен местами', d:'Можно поменяться позициями с соперниками (по желанию).', effect:'swap'}
   ]);
   const BLESS_B = shuffle([
-    ['Надежда','Поделитесь библейским обещанием. +1 шаг.'],
-    ['Служение','Назовите, как поможете дома. +2 шага.'],
-    ['Радость','Назовите хорошее событие недели. +1 шаг.'],
-    ['Внимание','5 секунд тишины и улыбка команде. +1 шаг.'],
+    {t:'Надежда', d:'Назовите библейское обещание. +1 шаг.', effect:'move', amount:1},
+    {t:'Радость', d:'Назовите хорошее событие недели. +1 шаг.', effect:'move', amount:1},
+    {t:'Служение', d:'Как поможете дома? +2 шага.', effect:'move', amount:2},
+    {t:'Мужество', d:'Получите 1 дополнительный бросок.', effect:'reroll', amount:1},
+    {t:'Благодать+', d:'Можно дважды проигнорировать «остановку» на неверном ответе (по одному за раз).', effect:'grace', amount:2},
+    {t:'К следующей зелёной', d:'Переход к ближайшей клетке «Благословение».', effect:'jumpBless'},
+    {t:'Поделись радостью', d:'Подарите соперникам +2 шага.', effect:'gift', amount:2},
+    {t:'Общее дело', d:'Обе команды делают +2 шага.', effect:'both', amount:2},
+    {t:'Обмен местами', d:'Можно поменяться позициями с соперниками (по желанию).', effect:'swap'}
   ]);
 
-  // INTERACTIVE CHALLENGES (relationship-first)
-  // effect: 'continue' | 'give5' | 'opp2' | 'skipSelf'
+  // ---------- INTERACTIVE CHALLENGES (rich) ----------
+  // effect (for some): 'continue' | 'give5' | 'opp2' | 'skipSelf'
   const CHAL_A = shuffle([
-    {t:'Комплимент сопернику','d':'Назовите хорошее качество игрока другой команды.',effect:'continue'},
-    {t:'Щедрость: +5 клеток сопернику','d':'Пожертвуйте 5 клеток другой команде (они пройдут с событиями).',effect:'give5'},
-    {t:'Подарок: 2 броска','d':'Подарите соперникам 2 броска подряд на их следующем ходу.',effect:'opp2'},
-    {t:'Уступить ход','d':'Пропустите свой следующий ход ради соперников.',effect:'skipSelf'},
-    {t:'Поддержка','d':'Скажите соперникам слова поддержки.',effect:'continue'},
-    {t:'Миротворец','d':'Предложите мирное решение любого спора.',effect:'continue'},
+    {t:'Комплимент сопернику', d:'Назовите сильную сторону игрока из другой команды (по имени).', effect:'continue'},
+    {t:'Щедрость: +5 сопернику', d:'Пожертвуйте 5 клеток другой команде (они пройдут с событиями).', effect:'give5'},
+    {t:'Подарок: 2 броска', d:'Подарите соперникам 2 броска подряд на их следующем ходу.', effect:'opp2'},
+    {t:'Уступить ход', d:'Добровольно пропустите свой следующий ход ради соперников.', effect:'skipSelf'},
+    {t:'Общие аплодисменты', d:'Похлопайте соперникам за прошлый правильный ответ/смелость.', effect:'continue'},
+    {t:'Общий жест', d:'Сделайте общий «дай пять» всей противоположной команде.', effect:'continue'},
+    {t:'История сотрудничества', d:'Коротко вспомните, когда вы договорились и стало лучше.', effect:'continue'},
+    {t:'Секретное рукопожатие', d:'Придумайте с соперником короткое рукопожатие и покажите всем.', effect:'continue'},
+    {t:'Добрые слова', d:'Назовите две вещи, которые вас объединяют с соперниками.', effect:'continue'},
+    {t:'Смена перспективы', d:'Скажите: «Сегодня мне понравилось в вас…» и закончите фразу.', effect:'continue'},
+    {t:'Обмен идеями', d:'Попросите у соперников совет, как стать лучшей командой.', effect:'continue'},
+    {t:'Командный девиз', d:'Придумайте общий девиз для обеих команд (короткая фраза).', effect:'continue'},
+    {t:'Пожелание', d:'Скажите искреннее пожелание другой команде на игру.', effect:'continue'},
+    {t:'Мини-сцена', d:'Вдвоём с соперником разыграйте «Как уступить место в автобусе» (10 сек).', effect:'continue'},
+    {t:'Синхрон', d:'Встаньте, посчитайте вслух 1–3 вместе с соперниками, садитесь.', effect:'continue'},
+    {t:'Мостик дружбы', d:'Поменяйтесь местами за партами с игроком из другой команды (если можно).', effect:'continue'},
+    {t:'Общий лайфхак', d:'Поделитесь «фишкой», как не ссориться дома.', effect:'continue'},
+    {t:'Доброе поручение', d:'Назовите домашнее дело, которое готовы сделать без напоминаний.', effect:'continue'},
+    {t:'Тёплая благодарность', d:'Поблагодарите соперников за любую мелочь прямо сейчас.', effect:'continue'},
+    {t:'Командный выбор', d:'Пусть соперники выберут, кто из вас бросит кубик в следующий раз.', effect:'continue'},
+    {t:'Подарок времени', d:'Позвольте соперникам 10 секунд обсудить следующий вопрос без вас.', effect:'continue'},
+    {t:'Светофор', d:'Красные говорят зелёное слово надежды; Синие — слово мира.', effect:'continue'},
+    {t:'Обмен талантом', d:'Каждый назовёт талант, который может помочь обеим командам.', effect:'continue'},
+    {t:'Знак дружбы', d:'Сделайте одинаковую позу для «общей фотографии».', effect:'continue'}
   ]);
   const CHAL_B = shuffle([
-    {t:'Служение сопернику','d':'Скажите, как могли бы послужить другой команде.',effect:'continue'},
-    {t:'Щедрость: +5 клеток сопернику','d':'Пожертвуйте 5 клеток другой команде (они пройдут с событиями).',effect:'give5'},
-    {t:'Подарок: 2 броска','d':'Подарите соперникам 2 броска подряд на их следующем ходу.',effect:'opp2'},
-    {t:'Уступить ход','d':'Пропустите свой следующий ход ради соперников.',effect:'skipSelf'},
-    {t:'Прощение','d':'Произнесите пример извинения за мелочь.',effect:'continue'},
-    {t:'Радость за других','d':'Искренне порадуйтесь успехам соперников.',effect:'continue'},
+    {t:'Служение сопернику', d:'Спросите у соперников: «Чем мы можем вам помочь прямо сейчас?»', effect:'continue'},
+    {t:'Щедрость: +5 сопернику', d:'Пожертвуйте 5 клеток другой команде.', effect:'give5'},
+    {t:'Подарок: 2 броска', d:'Подарите соперникам 2 броска подряд.', effect:'opp2'},
+    {t:'Уступить ход', d:'Пропустите свой следующий ход ради соперников.', effect:'skipSelf'},
+    {t:'Радость за других', d:'Назовите их недавний успех в игре и искренне порадуйтесь.', effect:'continue'},
+    {t:'Комплимент капитану', d:'Скажите тёплые слова капитану противоположной команды.', effect:'continue'},
+    {t:'Идея примирения', d:'Предложите способ помириться, если вдруг будет спор.', effect:'continue'},
+    {t:'Сотрудничество', d:'Сделайте вместе с соперником «мостик» из рук на 3 секунды.', effect:'continue'},
+    {t:'Поменяйтесь ролями', d:'Пусть соперники выберут, кто из вашей команды бросит кубик.', effect:'continue'},
+    {t:'Секунда тишины', d:'10 секунд тишины — улыбнитесь друг другу.', effect:'continue'},
+    {t:'Общее правило', d:'Сформулируйте правило: «На уроке мы…» и скажите вслух вместе.', effect:'continue'},
+    {t:'Тёплое имя', d:'Назовите по имени двоих соперников и скажите им «спасибо за…».', effect:'continue'},
+    {t:'Мимика', d:'Покажите смайлик настроения лицом; соперники угадывают.', effect:'continue'},
+    {t:'Волшебные слова', d:'Скажите громко вместе «Пожалуйста» и «Спасибо».', effect:'continue'},
+    {t:'Пакет поддержки', d:'Предложите соперникам 1 подсказку в следующем вопросе.', effect:'continue'},
+    {t:'Общее «мы»', d:'Скажите вместе: «Мы играем не против, а вместе!»', effect:'continue'},
+    {t:'Секрет доброты', d:'Назовите маленький добрый поступок, который сделаете сегодня.', effect:'continue'},
+    {t:'Радость общая', d:'Каждый делает один жест радости одновременно.', effect:'continue'},
+    {t:'Смена взгляда', d:'Назовите у соперников качество, которое хотели бы развить у себя.', effect:'continue'},
+    {t:'Похвала наставнику', d:'Коротко скажите, за что благодарны учителю/ведущему.', effect:'continue'},
+    {t:'Подарок выбора', d:'Пусть соперники решат, кому у вас бросать следующий кубик.', effect:'continue'},
+    {t:'Общее сердечко', d:'Сделайте «сердечко» руками обеими командами.', effect:'continue'},
+    {t:'Секунда заботы', d:'Спросите у соперников: «Как у вас дела?» и выслушайте ответ.', effect:'continue'}
   ]);
 
   // ---------- State ----------
-  let players = []; // {id,name,color,position,skipTurns,extraRolls}
+  let players = []; // {id,name,color,position,skipTurns,extraRolls,grace}
   let current = 0;
   let gameStarted = false;
   let gameOver = false;
   let traversing = false;
   let modalOpen = false;
   let musicOn = false;
+  let modalOnClose = null;     // default decision when “Закрыть”
 
   // ---------- DOM ----------
   const el = {
@@ -355,7 +421,7 @@
     bgm: $('#bgm'),
   };
 
-  // ---------- Fit board ----------
+  /* ---------- Fit board ---------- */
   function fitBoard(){
     const stage = document.querySelector('.stage').getBoundingClientRect();
     const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell-gap')) || 8;
@@ -368,7 +434,7 @@
   }
   window.addEventListener('resize', ()=>{ fitBoard(); placePawns(); });
 
-  // ---------- Build board ----------
+  /* ---------- Build board ---------- */
   function serpentineIndexToGrid(i){
     const zero = i-1;
     const r = Math.floor(zero / BOARD_COLS);
@@ -380,10 +446,10 @@
   function badgeFor(type){
     const map = {
       quiz:   '<div class="badge-chip chip-quiz">ВИКТОРИНА</div>',
-      bless:  '<div class="badge-chip chip-bless">БЛАГОСЛОВЕНИЕ</div>',
+      bless:  '<div class="badge-chip chip-bless">БЛАГОСЛОВ.</div>',
       chal:   '<div class="badge-chip chip-chal">ИСПЫТАНИЕ</div>',
-      start:  '<div class="badge-chip chip-chal" style="background:#6b7280">СТАРТ</div>',
-      finish: '<div class="badge-chip chip-chal" style="background:#6b7280">ФИНИШ</div>',
+      start:  '<div class="badge-chip" style="background:#6b7280">СТАРТ</div>',
+      finish: '<div class="badge-chip" style="background:#6b7280">ФИНИШ</div>',
     };
     return map[type] || '';
   }
@@ -405,7 +471,7 @@
     fitBoard();
   }
 
-  // ---------- Pawns ----------
+  /* ---------- Pawns ---------- */
   function cellCenterPos(cellEl){
     const r = cellEl.getBoundingClientRect();
     const b = el.board.getBoundingClientRect();
@@ -427,10 +493,11 @@
     }
   }
 
-  // ---------- Modal ----------
-  function showModal(title, html, buttons=[]){
+  /* ---------- Modal with safe close ---------- */
+  function showModal(title, html, buttons=[], onClose=null){
     modalOpen = true;
-    el.rollBtn.disabled = true;
+    modalOnClose = onClose;            // default action on “Закрыть”
+    el.rollBtn.disabled = true;        // lock roll while dialog is active
     el.modalTitle.textContent = title;
     el.modalBody.innerHTML = html;
     el.modalFooter.innerHTML = '';
@@ -447,23 +514,25 @@
     modalOpen = false;
     el.modal.classList.remove('show');
     el.modal.setAttribute('aria-hidden','true');
-    if(gameStarted && !traversing) el.rollBtn.disabled = false;
+    if(typeof modalOnClose === 'function'){
+      const fn = modalOnClose; modalOnClose = null;
+      fn();
+    }else if(gameStarted && !traversing){
+      el.rollBtn.disabled = false;
+    }
   }
 
-  // ---------- Dice overlay ----------
+  /* ---------- Dice overlay ---------- */
   function showBigDice(faceChar){
     el.bigDie.textContent = faceChar;
     el.diceOverlay.classList.add('show');
   }
   function hideBigDice(){ el.diceOverlay.classList.remove('show'); }
 
-  // ---------- Turn / position helpers ----------
+  /* ---------- Turn / position helpers ---------- */
   function currentPlayer(){ return players[current]; }
   function otherPlayer(){ return players[(current+1)%players.length]; }
-  function isBehind(p){
-    const other = (p===players[0]) ? players[1] : players[0];
-    return p.position < other.position;
-  }
+  function isBehind(p){ const other=(p===players[0])?players[1]:players[0]; return p.position < other.position; }
   function nextTurn(){
     if(gameOver) return;
     current = (current + 1) % players.length;
@@ -471,13 +540,12 @@
     el.turnName.textContent = p.name + (p.skipTurns>0?` (пропуск хода ${p.skipTurns})`:``);
     if(p.skipTurns>0){
       p.skipTurns--;
-      // consume and hand to other
       current = (current + 1) % players.length;
       el.turnName.textContent = currentPlayer().name;
     }
   }
 
-  // ---------- Movement & visiting ----------
+  /* ---------- Movement & visiting ---------- */
   function moveOneStep(p, dir, cb){
     p.position += dir;
     p.position = clamp(p.position, 1, TILE_COUNT);
@@ -485,22 +553,17 @@
     try{ el.sfxMove.currentTime=0; el.sfxMove.play().catch(()=>{});}catch(e){}
     setTimeout(cb, 110);
   }
-
-  // visit tile: cb('continue'|'stop')
+  // cb('continue'|'stop')
   function visitTile(p, idx, cbDecision){
     if(idx>=TILE_COUNT){ win(p); cbDecision('stop'); return; }
     const spec = SPECIALS[idx];
-    // empty or start -> just continue
     if(!spec || spec.type==='start'){ cbDecision('continue'); return; }
-
     if(spec.type==='quiz'){ return handleQuiz(p, cbDecision); }
     if(spec.type==='bless'){ return handleBlessing(p, cbDecision); }
     if(spec.type==='chal'){ return handleChallenge(p, cbDecision); }
     if(spec.type==='finish'){ win(p); cbDecision('stop'); return; }
     cbDecision('continue');
   }
-
-  // traverse p for N steps, handling every tile
   function traverse(p, stepsRemaining, done){
     if(stepsRemaining<=0){ done && done(); return; }
     moveOneStep(p, +1, ()=>{
@@ -512,7 +575,7 @@
     });
   }
 
-  // ---------- Roll ----------
+  /* ---------- Roll ---------- */
   function roll(){
     if(!gameStarted || gameOver || traversing || modalOpen) return;
     const p = currentPlayer();
@@ -544,13 +607,12 @@
           traverse(p, steps, ()=>{
             traversing = false;
             if(gameOver) return;
-            // bonus rolls?
             if(p.extraRolls && p.extraRolls>0){
               p.extraRolls--;
               el.sideNotes.innerHTML = `<div class="fw-bold">Бонусный бросок!</div><div>${p.name} кидает ещё раз.</div>`;
               el.rollBtn.disabled = false;
               el.skipTurnBtn.disabled = false;
-              return; // same player rolls again
+              return;
             }
             nextTurn();
             el.rollBtn.disabled = false;
@@ -561,7 +623,7 @@
     }, 60);
   }
 
-  // ---------- Event handlers ----------
+  /* ---------- Event handlers (with safe close defaults) ---------- */
   function getFromDeck(p, deckA, deckB){
     const useB = isBehind(p);
     const deck = useB ? deckB : deckA;
@@ -572,19 +634,23 @@
   }
 
   function handleQuiz(p, cbDecision){
-    const {card} = getFromDeck(p, QUIZ_A, QUIZ_B);
-    if(!card){ cbDecision('continue'); return; }
+    const got = getFromDeck(p, QUIZ_A, QUIZ_B);
+    if(!got || !got.card){ cbDecision('continue'); return; }
+
+    const card = shuffleQuizCard(got.card);
     const optsHtml = card.options.map((opt, idx)=>(
       `<div class="answer" data-idx="${idx}">${opt}</div>`
     )).join('');
-    const ref = card.ref ? `<div class="small text-muted mt-2">Место Писания: ${card.ref}</div>` : '';
+    const ref = card.ref ? `<div class="small text-muted mt-2" style="font-size:.6em">Место Писания: ${card.ref}</div>` : '';
+
     showModal('ВИКТОРИНА ❓', `
-      <div class="mb-2 fw-bold fs-5">${card.question}</div>
+      <div class="mb-2 fw-bold">${card.question}</div>
       <div id="answers" class="d-grid gap-2">${optsHtml}</div>
       ${ref}
-      <div class="small mt-3">Верно — продолжаете оставшиеся шаги. Неверно — <strong>остаетесь здесь</strong>, ход заканчивается.</div>
-    `);
-    const answers = $('#answers');
+      <div class="small mt-3" style="font-size:.6em">Верно — продолжаете; неверно — остаётесь здесь${p.grace>0?' (если у вас есть «Благодать», она спасёт один раз)':''}.</div>
+    `, [], ()=>{ cbDecision('stop'); });
+
+    const answers = document.querySelector('#answers');
     answers.querySelectorAll('.answer').forEach(a=>{
       a.addEventListener('click', ()=>{
         const chosen = +a.dataset.idx;
@@ -592,79 +658,148 @@
         if(correct){
           a.classList.add('correct');
           try{ el.sfxCorrect.currentTime=0; el.sfxCorrect.play().catch(()=>{});}catch(e){}
-          el.sideNotes.innerHTML = `<div class="fw-bold">Верно!</div><div>${card.question}</div>`;
-          setTimeout(()=>{ closeModal(); cbDecision('continue'); }, 450);
+          setTimeout(()=>{ modalOnClose=null; closeModal(); cbDecision('continue'); }, 450);
         }else{
-          a.classList.add('wrong');
-          try{ el.sfxWrong.currentTime=0; el.sfxWrong.play().catch(()=>{});}catch(e){}
-          el.sideNotes.innerHTML = `<div class="fw-bold">Неверно</div><div>Команда остаётся на клетке #${p.position}.</div>`;
-          setTimeout(()=>{ closeModal(); cbDecision('stop'); }, 450);
+          // GRACE: ignore one wrong answer if blessed
+          if((p.grace||0) > 0){
+            p.grace--;
+            el.sideNotes.innerHTML = `<div class="fw-bold">Благодать</div><div>Неверный ответ проигнорирован. Продолжайте движение.</div>`;
+            try{ el.sfxCorrect.currentTime=0; el.sfxCorrect.play().catch(()=>{});}catch(e){}
+            setTimeout(()=>{ modalOnClose=null; closeModal(); cbDecision('continue'); }, 450);
+          }else{
+            a.classList.add('wrong');
+            try{ el.sfxWrong.currentTime=0; el.sfxWrong.play().catch(()=>{});}catch(e){}
+            setTimeout(()=>{ modalOnClose=null; closeModal(); cbDecision('stop'); }, 450);
+          }
         }
       }, {once:true});
     });
   }
 
   function handleBlessing(p, cbDecision){
-    const {card} = getFromDeck(p, BLESS_A, BLESS_B) || {};
-    const title = card ? card[0] : 'Благословение';
-    const text  = card ? card[1] : '+1 шаг.';
+    let got = getFromDeck(p, BLESS_A, BLESS_B);
+    let card = got && got.card;
+    // fallback: random from both decks so it's never empty
+    if(!card){
+      const pool = [...BLESS_A, ...BLESS_B];
+      card = pool[Math.floor(Math.random()*pool.length)];
+    }
+    const title = card.t || 'Благословение';
+    const desc  = card.d || '+1 шаг.';
+
     try{ el.sfxBless.currentTime=0; el.sfxBless.play().catch(()=>{});}catch(e){}
-    el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div>${text}</div>`;
-    showModal('БЛАГОСЛОВЕНИЕ 🕊️', `<div class="fs-5">${title}</div><div class="mt-2">${text}</div>`, [
-      {label:'Применить', cls:'btn-success', cb: ()=>{
-        closeModal();
-        let extra = /\+2/.test(text) ? 2 : /\+1/.test(text) ? 1 : 0;
-        if(extra>0){
-          traverse(p, Math.min(extra, TILE_COUNT - p.position), ()=> cbDecision('continue'));
-        }else{
-          cbDecision('continue');
+    el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div>${desc}</div>`;
+
+    const apply = ()=>{
+      switch(card.effect){
+        case 'move': {
+          const extra = Math.max(0, Math.min(card.amount||0, TILE_COUNT - p.position));
+          if(extra>0){ traverse(p, extra, ()=> cbDecision('continue')); }
+          else cbDecision('continue');
+          break;
         }
-      }}
-    ]);
+        case 'reroll': {
+          p.extraRolls = (p.extraRolls||0) + (card.amount||1);
+          cbDecision('continue');
+          break;
+        }
+        case 'grace': {
+          p.grace = (p.grace||0) + (card.amount||1);
+          cbDecision('continue');
+          break;
+        }
+        case 'jumpBless': {
+          const target = findNextIndexByType(p.position, 'bless');
+          if(target){
+            const steps = target - p.position;
+            traversing = true; el.rollBtn.disabled=true;
+            traverse(p, steps, ()=>{ traversing=false; el.rollBtn.disabled=false; cbDecision('continue'); });
+          }else{
+            cbDecision('continue');
+          }
+          break;
+        }
+        case 'gift': {
+          const opp = otherPlayer();
+          const steps = Math.min(card.amount||1, TILE_COUNT - opp.position);
+          traversing = true; el.rollBtn.disabled=true;
+          traverse(opp, steps, ()=>{ traversing=false; el.rollBtn.disabled=false; cbDecision('continue'); });
+          break;
+        }
+        case 'both': {
+          const opp = otherPlayer();
+          const s1 = Math.min(card.amount||1, TILE_COUNT - p.position);
+          const s2 = Math.min(card.amount||1, TILE_COUNT - opp.position);
+          traversing = true; el.rollBtn.disabled=true;
+          traverse(p, s1, ()=>{ traverse(opp, s2, ()=>{ traversing=false; el.rollBtn.disabled=false; cbDecision('continue'); }); });
+          break;
+        }
+        case 'swap': {
+          const tmp = p.position; p.position = otherPlayer().position; otherPlayer().position = tmp;
+          placePawns();
+          cbDecision('continue');
+          break;
+        }
+        default:
+          cbDecision('continue');
+      }
+    };
+
+    // For 'swap' offer a choice
+    if(card.effect==='swap'){
+      showModal('БЛАГОСЛОВЕНИЕ 🕊️', `<div>${title}</div><div class="mt-2">${desc}</div>`, [
+        {label:'Поменяться', cls:'btn-warning', cb: ()=>{ modalOnClose=null; closeModal(); apply(); }},
+        {label:'Оставить как есть', cls:'btn-secondary', cb: ()=>{ modalOnClose=null; closeModal(); cbDecision('continue'); }}
+      ], ()=>{ cbDecision('continue'); });
+    }else{
+      showModal('БЛАГОСЛОВЕНИЕ 🕊️', `<div>${title}</div><div class="mt-2">${desc}</div>`, [
+        {label:'Применить', cls:'btn-success', cb: ()=>{ modalOnClose=null; closeModal(); apply(); }}
+      ], ()=>{ cbDecision('continue'); });
+    }
   }
 
   function handleChallenge(p, cbDecision){
-    const {card} = getFromDeck(p, CHAL_A, CHAL_B) || {};
-    const title = card ? card.t : 'Испытание';
-    const desc  = card ? card.d : 'Сделайте доброе дело. Удалось? — продолжайте.';
+    let got = getFromDeck(p, CHAL_A, CHAL_B);
+    let card = got && got.card;
+    if(!card){
+      const pool = isBehind(p) ? CHAL_B : CHAL_A;
+      card = pool[Math.floor(Math.random()*pool.length)];
+    }
+    const title = card.t;
+    const desc  = card.d;
+
     try{ el.sfxChal.currentTime=0; el.sfxChal.play().catch(()=>{});}catch(e){}
     el.sideNotes.innerHTML = `<div class="fw-bold">${title}</div><div>${desc}</div>`;
 
-    // Compose buttons based on effect
     const btns = [];
-    if(card){
-      if(card.effect==='give5'){
-        btns.push({label:'Дать +5 сопернику', cls:'btn-warning', cb: ()=>{
-          closeModal();
-          const opp = otherPlayer();
-          traversing = true; el.rollBtn.disabled = true;
-          const steps = Math.min(5, TILE_COUNT - opp.position);
-          traverse(opp, steps, ()=>{ traversing=false; el.rollBtn.disabled=false; cbDecision('continue'); });
-        }});
-      }
-      if(card.effect==='opp2'){
-        btns.push({label:'Подарить 2 броска', cls:'btn-warning', cb: ()=>{
-          closeModal();
-          const opp = otherPlayer();
-          opp.extraRolls = (opp.extraRolls||0) + 1; // один доп, итого два подряд
-          cbDecision('continue');
-        }});
-      }
-      if(card.effect==='skipSelf'){
-        btns.push({label:'Уступить ход', cls:'btn-outline-danger', cb: ()=>{
-          closeModal();
-          currentPlayer().skipTurns = (currentPlayer().skipTurns||0) + 1;
-          cbDecision('stop');
-        }});
-      }
-      // universal “Выполнено”
-      btns.push({label:'Выполнено ✅', cls:'btn-success', cb: ()=>{ closeModal(); cbDecision('continue'); }});
-      btns.push({label:'Не делать ⛔', cls:'btn-outline-secondary', cb: ()=>{ closeModal(); cbDecision('stop'); }});
-    }else{
-      btns.push({label:'ОК', cls:'btn-primary', cb: ()=>{ closeModal(); cbDecision('continue'); }});
+    if(card.effect==='give5'){
+      btns.push({label:'Дать +5 сопернику', cls:'btn-warning', cb: ()=>{
+        modalOnClose=null; closeModal();
+        const opp = otherPlayer();
+        traversing = true; el.rollBtn.disabled = true;
+        const steps = Math.min(5, TILE_COUNT - opp.position);
+        traverse(opp, steps, ()=>{ traversing=false; el.rollBtn.disabled=false; cbDecision('continue'); });
+      }});
     }
+    if(card.effect==='opp2'){
+      btns.push({label:'Подарить 2 броска', cls:'btn-warning', cb: ()=>{
+        modalOnClose=null; closeModal();
+        const opp = otherPlayer();
+        opp.extraRolls = (opp.extraRolls||0) + 1; // +1 к обычному даёт два подряд
+        cbDecision('continue');
+      }});
+    }
+    if(card.effect==='skipSelf'){
+      btns.push({label:'Уступить ход', cls:'btn-outline-danger', cb: ()=>{
+        modalOnClose=null; closeModal();
+        currentPlayer().skipTurns = (currentPlayer().skipTurns||0) + 1;
+        cbDecision('stop');
+      }});
+    }
+    btns.push({label:'Выполнено ✅', cls:'btn-success', cb: ()=>{ modalOnClose=null; closeModal(); cbDecision('continue'); }});
+    btns.push({label:'Не делать ⛔', cls:'btn-outline-secondary', cb: ()=>{ modalOnClose=null; closeModal(); cbDecision('stop'); }});
 
-    showModal('ИСПЫТАНИЕ ⚠️', `<div class="fs-5">${title}</div><div class="mt-2">${desc}</div>`, btns);
+    showModal('ИСПЫТАНИЕ ⚠️', `<div class="">${title}</div><div class="mt-2">${desc}</div>`, btns, ()=>{ cbDecision('stop'); });
   }
 
   function win(p){
@@ -675,24 +810,25 @@
     showModal('ФИНИШ ✨', `
       <p class="mb-1"><strong>${p.name}</strong> достигли последней клетки!</p>
       <p class="mb-2">Главное — отношения и единство. Спасибо за игру!</p>
-    `, [{label:'ОК', cls:'btn-primary', cb: closeModal}]);
+    `, [{label:'ОК', cls:'btn-primary', cb: ()=>{ modalOnClose=null; closeModal(); }}], ()=>{ /* close behaves same as OK */ });
   }
 
-  // ---------- Start & UI ----------
+  /* ---------- Start & UI ---------- */
   function startGame(){
     const names = [el.name1.value || 'Красные', el.name2.value || 'Синие'];
     players = [
-      {id:0, name:names[0], color:'red',  position:1, skipTurns:0, extraRolls:0},
-      {id:1, name:names[1], color:'blue', position:1, skipTurns:0, extraRolls:0},
+      {id:0, name:names[0], color:'red',  position:1, skipTurns:0, extraRolls:0, grace:0},
+      {id:1, name:names[1], color:'blue', position:1, skipTurns:0, extraRolls:0, grace:0},
     ];
-    current = 0; gameOver=false; gameStarted=true; traversing=false; modalOpen=false;
+    current = 0; gameOver=false; gameStarted=true; traversing=false; modalOpen=false; modalOnClose=null;
     buildBoard(); placePawns(); fitBoard();
     el.turnName.textContent = players[0].name;
     el.sideNotes.innerHTML = `<div class="fw-bold">Старт</div><div>Бросайте кубик!</div>`;
     el.setup.setAttribute('aria-hidden','true');
     el.setup.style.display='none';
-    // try start bgm quietly
     try{ el.bgm.volume = 0.25; el.bgm.play().then(()=>{ musicOn=true; el.musicBtn.textContent='Музыка ⏸️'; }).catch(()=>{});}catch(e){}
+    el.rollBtn.disabled = false;
+    el.skipTurnBtn.disabled = false;
   }
 
   function toggleFullscreen(){
@@ -720,7 +856,7 @@
   $('#rollBtn').addEventListener('click', roll);
   document.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); roll(); }});
   $('#modalClose').addEventListener('click', closeModal);
-  $('#endBtn').addEventListener('click', ()=>{ if(!gameOver){ showModal('Завершить?', `<div>Закончить партию сейчас?</div>`, [{label:'Отмена', cls:'btn-secondary', cb: closeModal},{label:'Завершить', cls:'btn-danger', cb: ()=>{ closeModal(); gameOver=true; }}]); }});
+  $('#endBtn').addEventListener('click', ()=>{ if(!gameOver){ showModal('Завершить?', `<div>Закончить партию сейчас?</div>`, [{label:'Отмена', cls:'btn-secondary', cb: ()=>{ modalOnClose=null; closeModal(); }},{label:'Завершить', cls:'btn-danger', cb: ()=>{ modalOnClose=null; closeModal(); gameOver=true; }}], ()=>{ modalOnClose=null; closeModal(); }); }});
   $('#fsBtn').addEventListener('click', toggleFullscreen);
   $('#fsBtnSetup').addEventListener('click', toggleFullscreen);
   $('#musicBtn').addEventListener('click', toggleMusic);
